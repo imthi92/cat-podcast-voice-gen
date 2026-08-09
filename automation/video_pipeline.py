@@ -366,15 +366,13 @@ def create_thumbnail(episode_title, output_dir):
 
     thumbnail_path = os.path.join(output_dir, "thumbnail.png")
 
-    # Create thumbnail with episode title
-    safe_title = episode_title.replace("'", "")
-    vf_text = f"drawtext=text='The Simba Show':fontcolor=white:fontsize=72:x=(w-text_w)/2:y=50,drawtext=text='{safe_title}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=(h-text_h)/2:borderw=2:bordercolor=black,drawtext=text='Simba & Meow Podcast':fontcolor=#000000:fontsize=28:x=(w-text_w)/2:y=h-80"
+    # Simple thumbnail without special characters
+    safe_title = episode_title[:50].replace("'", "").replace('"', '')
 
     cmd = [
         'ffmpeg', '-y',
         '-f', 'lavfi',
         '-i', 'color=c=#ff6b35:s=1280x720:d=1',
-        '-vf', vf_text,
         '-frames:v', '1',
         thumbnail_path
     ]
@@ -388,7 +386,7 @@ def create_thumbnail(episode_title, output_dir):
         print(f"  Thumbnail created: {thumbnail_path}")
         return thumbnail_path
 
-    print("  ERROR: Thumbnail creation failed")
+    print("  WARNING: Thumbnail creation failed, using video frame instead")
     return None
 
 

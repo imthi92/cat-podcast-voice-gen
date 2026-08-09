@@ -247,7 +247,7 @@ def run_full_automation(topic=None, publish=False):
     print("\n[STEP 3] Uploading to YouTube...")
     upload_result = None
 
-    if os.environ.get("YOUTUBE_CLIENT_SECRET"):
+    if os.path.exists("youtube_token.pickle"):
         upload_result = upload_episode(
             video_path=pipeline_result["final_video"],
             episode_title=topic,
@@ -255,8 +255,8 @@ def run_full_automation(topic=None, publish=False):
             publish=publish,
         )
     else:
-        print("  No YouTube credentials found, skipping upload")
-        print("  Set YOUTUBE_CLIENT_SECRET environment variable to enable upload")
+        print("  No YouTube token found, skipping upload")
+        print("  Run: python authenticate_youtube.py")
 
     # Step 5: Mark as processed
     episode_key = f"episode_{timestamp}"
