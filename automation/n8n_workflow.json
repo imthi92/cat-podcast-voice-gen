@@ -1,0 +1,303 @@
+{
+  "name": "Cat Podcast Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Office gossip topics for the cat podcast\nconst topics = [\n  \"The printer jam conspiracy theory\",\n  \"Who stole my lunch from the fridge\",\n  \"The meeting that should have been an email\",\n  \"The WiFi password changed again\",\n  \"The air conditioning war between departments\",\n  \"The mysterious sticky notes on the desk\",\n  \"The new intern's first day disaster\",\n  \"The coffee machine is broken again\",\n  \"The elevator is haunted\",\n  \"The manager's motivational speech gone wrong\",\n  \"The office birthday party disaster\",\n  \"The IT department's secret files\",\n  \"The parking lot drama\",\n  \"The vending machine ate my money\",\n  \"The fire drill during lunch hour\"\n];\n\nconst randomTopic = topics[Math.floor(Math.random() * topics.length)];\n\nreturn [{\n  json: {\n    topic: randomTopic,\n    timestamp: new Date().toISOString(),\n    episode_number: Math.floor(Math.random() * 1000)\n  }\n}];"
+      },
+      "id": "topic-picker",
+      "name": "Topic Picker",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You write funny cat podcast scripts. Characters: Simba (Speaker 1, confident, slightly stupid, works in Marketing, shares office gossip) and Meow (Speaker 2, intelligent, sarcastic, works in Finance). Keep it 25-40 lines. Use format Speaker 1: and Speaker 2:. Make it funny with office humor.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Write a podcast episode about: {{ $json.topic }}\"\n    }\n  ],\n  \"temperature\": 0.8,\n  \"max_tokens\": 1500\n}"
+      },
+      "id": "openai-script",
+      "name": "Generate Script (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst script = response.choices[0].message.content;\nconst topic = $('Topic Picker').first().json.topic;\nconst episodeNumber = $('Topic Picker').first().json.episode_number;\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\n\nconst filename = `episode_${timestamp}.txt`;\n\nreturn [{\n  json: {\n    script: script,\n    topic: topic,\n    episode_number: episodeNumber,\n    filename: filename,\n    timestamp: timestamp,\n    title: `The Simba Show - ${topic}`,\n    description: `Cat Podcast: ${topic}\\n\\nSimba and Meow are back with another episode!\\n\\n#CatPodcast #SimbaAndMeow #FunnyCats`\n  }\n}];"
+      },
+      "id": "format-script",
+      "name": "Format Script",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/scripts/{{ $json.filename }}",
+        "dataPropertyName": "script",
+        "options": {}
+      },
+      "id": "save-script",
+      "name": "Save Script",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.COLAB_WEBHOOK_URL || 'http://localhost:5000/generate' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"script\": {{ JSON.stringify($json.script) }},\n  \"filename\": \"{{ $json.filename }}\"\n}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "colab-webhook",
+      "name": "Send to Colab (VibeVoice)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst formatData = $('Format Script').first().json;\n\nreturn [{\n  json: {\n    ...formatData,\n    audio_path: response.audio_path || response.file,\n    status: response.status || 'success',\n    video_path: response.video_path,\n    thumbnail_path: response.thumbnail_path\n  }\n}];"
+      },
+      "id": "process-result",
+      "name": "Process Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if video was generated successfully\nconst data = $input.first().json;\n\nif (data.status === 'success' && data.video_path) {\n  return [{ json: { success: true, ...data } }];\n} else {\n  return [{ json: { success: false, error: 'Video generation failed', ...data } }];\n}"
+      },
+      "id": "check-success",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-success",
+      "name": "If Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "resource": "video",
+        "title": "={{ $('Format Script').first().json.title }}",
+        "description": "={{ $('Format Script').first().json.description }}",
+        "categoryId": "24",
+        "tags": "cat podcast, funny cats, office cats, simba and meow, cat comedy, podcast",
+        "privacyStatus": "private"
+      },
+      "id": "youtube-upload",
+      "name": "Upload to YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [2200, 200],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "YOUR_YOUTUBE_CREDENTIAL_ID",
+          "name": "YouTube API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nreturn [{\n  json: {\n    message: `Episode uploaded successfully!\\nTitle: ${data.title}\\nVideo ID: ${data.videoId}\\nURL: https://youtube.com/watch?v=${data.videoId}`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "upload-success",
+      "name": "Upload Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nreturn [{\n  json: {\n    message: `Episode failed: ${data.error}`,\n    timestamp: new Date().toISOString(),\n    topic: data.topic\n  }\n}];"
+      },
+      "id": "upload-failed",
+      "name": "Upload Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 400]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Topic Picker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Topic Picker": {
+      "main": [
+        [
+          {
+            "node": "Generate Script (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Script (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Format Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Script": {
+      "main": [
+        [
+          {
+            "node": "Save Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Script": {
+      "main": [
+        [
+          {
+            "node": "Send to Colab (VibeVoice)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Colab (VibeVoice)": {
+      "main": [
+        [
+          {
+            "node": "Process Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Result": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "If Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Success": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upload Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Upload Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "cat-podcast"
+    },
+    {
+      "name": "automation"
+    }
+  ]
+}
