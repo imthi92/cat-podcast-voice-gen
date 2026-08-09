@@ -249,13 +249,17 @@ def generate_subtitles(audio_path, script_path, output_dir):
 
 def get_audio_duration(audio_path):
     """Get audio duration in seconds using ffprobe."""
-    cmd = f"""ffprobe -v error -show_entries format=duration \
-        -of default=noprint_wrappers=1:nokey=1 "{audio_path}" """
-    result = run_command(cmd)
+    cmd = [
+        'ffprobe', '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        audio_path
+    ]
     try:
-        return float(result.strip())
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        return float(result.stdout.strip())
     except:
-        return 90  # Default 90 seconds
+        return 30  # Default 30 seconds
 
 
 def create_video(audio_path, subtitle_path, output_dir):
@@ -263,37 +267,28 @@ def create_video(audio_path, subtitle_path, output_dir):
     print("\n[3/5] Creating video with FFmpeg...")
 
     video_output = os.path.join(output_dir, "final_video.mp4")
-    background = os.path.join(CONFIG['assets_dir'], "studio_background.png")
-
-    # Check if background exists, create placeholder if not
-    if not os.path.exists(background):
-        print("  Creating placeholder background...")
-        create_placeholder_background(background)
 
     duration = get_audio_duration(audio_path)
     w, h = CONFIG['video_resolution']
 
-    # Create video with FFmpeg using subprocess list
+    # Simple approach: create colored background video with audio
     cmd = [
         'ffmpeg', '-y',
-        '-loop', '1',
-        '-i', background,
+        '-f', 'lavfi',
+        '-i', f'color=c=#1a1a2e:s={w}x{h}:d={duration}',
         '-i', audio_path,
-        '-vf', f'scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2',
         '-c:v', 'libx264',
-        '-tune', 'stillimage',
         '-c:a', 'aac',
         '-b:a', '192k',
         '-pix_fmt', 'yuv420p',
         '-shortest',
-        '-t', str(duration),
         video_output
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if result.returncode != 0:
-            print(f"  FFmpeg error: {result.stderr[:200]}")
+            print(f"  FFmpeg stderr: {result.stderr[:500]}")
     except Exception as e:
         print(f"  FFmpeg failed: {e}")
 
