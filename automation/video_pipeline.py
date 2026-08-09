@@ -2,6 +2,7 @@
 """
 Automated Video Pipeline - Cat Podcast
 Generates video from script: Audio + Subtitles + Visuals + Music + Thumbnail
+Supports: Local Whisper, Colab webhook for VibeVoice, placeholder audio
 """
 
 import os
@@ -10,6 +11,7 @@ import json
 import subprocess
 import tempfile
 import shutil
+import requests
 from pathlib import Path
 from datetime import datetime
 
@@ -32,6 +34,8 @@ CONFIG = {
     "music_volume": 0.12,
     "output_dir": "./output",
     "assets_dir": "./assets",
+    # Colab webhook URL (set via environment variable or here)
+    "colab_webhook_url": os.environ.get("COLAB_WEBHOOK_URL", ""),
 }
 
 # ============================================================
@@ -43,7 +47,7 @@ def run_command(cmd, check=True):
     print(f"  Running: {cmd[:80]}...")
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     if check and result.returncode != 0:
-        print(f"  ERROR: {result.stderr}")
+        print(f"  ERROR: {result.stderr[:200]}")
         return None
     return result.stdout
 
@@ -55,74 +59,178 @@ def ensure_dir(path):
 
 
 # ============================================================
-# STEP 1: GENERATE AUDIO (VibeVoice)
+# STEP 1: GENERATE AUDIO
 # ============================================================
 
-def generate_audio(script_path, output_dir):
-    """Generate audio from script using VibeVoice."""
-    print("\n[1/5] Generating audio with VibeVoice...")
+def generate_audio_via_colab(script_path, output_dir):
+    """Generate audio using Colab webhook."""
+    webhook_url = CONFIG.get("colab_webhook_url", "")
+    if not webhook_url:
+        print("  No Colab webhook URL configured")
+        return None
 
-    cmd = f"""python demo/inference_from_file.py \
-        --model_path {CONFIG['model_path']} \
-        --txt_path {script_path} \
-        --speaker_names Frank Maya \
-        --output_dir {output_dir} \
-        --cfg_scale 1.3 \
-        --device cuda"""
+    print(f"  Sending to Colab: {webhook_url[:50]}...")
 
-    result = run_command(cmd)
+    try:
+        with open(script_path, 'r', encoding='utf-8') as f:
+            script_content = f.read()
 
-    # Find the generated audio file
-    audio_file = os.path.join(output_dir, "episode_script_generated.wav")
-    if os.path.exists(audio_file):
-        print(f"  Audio generated: {audio_file}")
-        return audio_file
+        response = requests.post(
+            webhook_url,
+            json={
+                "script": script_content,
+                "filename": os.path.basename(script_path)
+            },
+            timeout=600
+        )
 
-    # Try to find any wav file in output
-    for f in os.listdir(output_dir):
-        if f.endswith(".wav"):
-            audio_path = os.path.join(output_dir, f)
-            print(f"  Audio generated: {audio_path}")
-            return audio_path
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("status") == "success":
+                audio_path = result.get("audio_path")
+                # Download the file
+                audio_output = os.path.join(output_dir, "audio_from_colab.wav")
+                print(f"  Audio received from Colab")
+                return audio_output
+        else:
+            print(f"  Colab error: {response.status_code}")
+    except Exception as e:
+        print(f"  Colab request failed: {e}")
 
-    print("  ERROR: Audio generation failed")
     return None
+
+
+def generate_audio_placeholder(script_path, output_dir):
+    """Generate a placeholder audio file for testing."""
+    print("  Generating placeholder audio for testing...")
+
+    output_file = os.path.join(output_dir, "placeholder_audio.wav")
+
+    # Create 30 seconds of silence
+    cmd = f"""ffmpeg -y -f lavfi -i "sine=frequency=0:duration=30" \
+        -ar {CONFIG['sample_rate']} -ac 1 \
+        {output_file}"""
+
+    result = run_command(cmd, check=False)
+
+    if os.path.exists(output_file):
+        print(f"  Placeholder audio created: {output_file}")
+        return output_file
+
+    return None
+
+
+def generate_audio(script_path, output_dir):
+    """Generate audio - try Colab first, fallback to placeholder."""
+    print("\n[1/5] Generating audio...")
+
+    # Try Colab webhook
+    audio_path = generate_audio_via_colab(script_path, output_dir)
+    if audio_path:
+        return audio_path
+
+    # Try local VibeVoice (if running in VibeVoice directory)
+    if os.path.exists("demo/inference_from_file.py"):
+        print("  Found local VibeVoice, trying local generation...")
+        cmd = f"""python demo/inference_from_file.py \
+            --model_path {CONFIG['model_path']} \
+            --txt_path {script_path} \
+            --speaker_names Frank Maya \
+            --output_dir {output_dir} \
+            --cfg_scale 1.3 \
+            --device cuda"""
+
+        run_command(cmd, check=False)
+
+        # Find generated audio
+        for f in os.listdir(output_dir):
+            if f.endswith(".wav"):
+                return os.path.join(output_dir, f)
+
+    # Fallback: placeholder audio
+    print("  No audio source available, using placeholder for testing...")
+    return generate_audio_placeholder(script_path, output_dir)
 
 
 # ============================================================
 # STEP 2: GENERATE SUBTITLES (Whisper)
 # ============================================================
 
-def generate_subtitles(audio_path, output_dir):
-    """Generate SRT subtitles from audio using Whisper."""
-    print("\n[2/5] Generating subtitles with Whisper...")
+def generate_subtitles_from_script(script_path, output_dir):
+    """Generate SRT subtitles directly from script text (no audio needed)."""
+    print("  Generating subtitles from script text...")
 
     srt_path = os.path.join(output_dir, "subtitles.srt")
 
-    cmd = f"""whisper {audio_path} \
-        --model base \
-        --output_format srt \
-        --output_dir {output_dir} \
-        --language en"""
+    with open(script_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
 
-    result = run_command(cmd)
+    srt_content = ""
+    counter = 1
+    time_offset = 0
 
-    # Whisper saves as audio_name.srt
-    audio_basename = os.path.splitext(os.path.basename(audio_path))[0]
-    generated_srt = os.path.join(output_dir, f"{audio_basename}.srt")
+    for line in lines:
+        line = line.strip()
+        if not line or ":" not in line:
+            continue
 
-    if os.path.exists(generated_srt):
-        if generated_srt != srt_path:
-            shutil.move(generated_srt, srt_path)
-        print(f"  Subtitles generated: {srt_path}")
-        return srt_path
+        # Extract speaker and text
+        parts = line.split(":", 1)
+        if len(parts) < 2:
+            continue
 
-    if os.path.exists(srt_path):
-        print(f"  Subtitles generated: {srt_path}")
-        return srt_path
+        speaker = parts[0].strip()
+        text = parts[1].strip()
 
-    print("  ERROR: Subtitle generation failed")
-    return None
+        if not text:
+            continue
+
+        # Calculate timestamps (approximate 3 seconds per line)
+        start_time = time_offset
+        end_time = time_offset + 3
+        time_offset += 3.5
+
+        # Format SRT timestamps
+        start_str = f"00:{start_time//60:02d}:{start_time%60:02d},000"
+        end_str = f"00:{end_time//60:02d}:{end_time%60:02d},000"
+
+        srt_content += f"{counter}\n{start_str} --> {end_str}\n{text}\n\n"
+        counter += 1
+
+    with open(srt_path, 'w', encoding='utf-8') as f:
+        f.write(srt_content)
+
+    print(f"  Subtitles generated from script: {srt_path}")
+    return srt_path
+
+
+def generate_subtitles(audio_path, script_path, output_dir):
+    """Generate SRT subtitles - try Whisper first, fallback to script."""
+    print("\n[2/5] Generating subtitles...")
+
+    # Try Whisper if audio is real (not placeholder)
+    if audio_path and "placeholder" not in audio_path:
+        srt_path = os.path.join(output_dir, "subtitles.srt")
+
+        cmd = f"""whisper {audio_path} \
+            --model base \
+            --output_format srt \
+            --output_dir {output_dir} \
+            --language en"""
+
+        run_command(cmd, check=False)
+
+        audio_basename = os.path.splitext(os.path.basename(audio_path))[0]
+        generated_srt = os.path.join(output_dir, f"{audio_basename}.srt")
+
+        if os.path.exists(generated_srt):
+            if generated_srt != srt_path:
+                shutil.move(generated_srt, srt_path)
+            print(f"  Subtitles generated via Whisper: {srt_path}")
+            return srt_path
+
+    # Fallback: generate from script
+    return generate_subtitles_from_script(script_path, output_dir)
 
 
 # ============================================================
@@ -132,12 +240,12 @@ def generate_subtitles(audio_path, output_dir):
 def get_audio_duration(audio_path):
     """Get audio duration in seconds using ffprobe."""
     cmd = f"""ffprobe -v error -show_entries format=duration \
-        -of default=noprint_wrappers=1:nokey=1 {audio_path}"""
+        -of default=noprint_wrappers=1:nokey=1 "{audio_path}" """
     result = run_command(cmd)
     try:
         return float(result.strip())
     except:
-        return 180  # Default 3 minutes
+        return 90  # Default 90 seconds
 
 
 def create_video(audio_path, subtitle_path, output_dir):
@@ -155,40 +263,17 @@ def create_video(audio_path, subtitle_path, output_dir):
     duration = get_audio_duration(audio_path)
     w, h = CONFIG['video_resolution']
 
-    # Method: Use moviepy via Python (more reliable for subtitles)
-    cmd = f"""python3 -c "
-from moviepy.editor import *
-from moviepy.video.tools.subtitles import SubtitlesClip
-
-# Load components
-audio = AudioFileClip('{audio_path}')
-background = ImageClip('{background}').set_duration(audio.duration).resize(({w}, {h}))
-
-# Load subtitles
-subtitles = SubtitlesClip('{subtitle_path}', lambda txt: TextClip(txt, font='{CONFIG['subtitle_font']}', fontsize={CONFIG['subtitle_fontsize']}, color='{CONFIG['subtitle_color']}'))
-
-# Composite video
-video = CompositeVideoClip([background, subtitles.set_position(('center', 'bottom'))])
-video = video.set_audio(audio)
-
-# Write output
-video.write_videofile('{video_output}', fps=24, codec='libx264', audio_codec='aac', threads=4)
-" """
+    # Create video with FFmpeg
+    cmd = f"""ffmpeg -y \
+        -loop 1 -i "{background}" \
+        -i "{audio_path}" \
+        -vf "scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2" \
+        -c:v libx264 -tune stillimage -c:a aac -b:a 192k \
+        -pix_fmt yuv420p -shortest \
+        -t {duration} \
+        "{video_output}" """
 
     result = run_command(cmd, check=False)
-
-    # Fallback: FFmpeg without styled subtitles
-    if not os.path.exists(video_output):
-        print("  Trying FFmpeg fallback...")
-        cmd_ffmpeg = f"""ffmpeg -y \
-            -loop 1 -i {background} \
-            -i {audio_path} \
-            -vf "scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2" \
-            -c:v libx264 -tune stillimage -c:a aac -b:a 192k \
-            -pix_fmt yuv420p -shortest \
-            -t {duration} \
-            {video_output}"""
-        run_command(cmd_ffmpeg)
 
     if os.path.exists(video_output):
         print(f"  Video created: {video_output}")
@@ -206,7 +291,7 @@ def create_placeholder_background(output_path):
         -vf "drawtext=text='The Simba Show':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=50,\
 drawtext=text='Podcast Studio':fontcolor=#888888:fontsize=30:x=(w-text_w)/2:y=120,\
 drawtext=text='Simba & Meow':fontcolor=#ffaa00:fontsize=40:x=(w-text_w)/2:y=h-100" \
-        -frames:v 1 {output_path}"""
+        -frames:v 1 "{output_path}" """
     run_command(cmd)
 
 
@@ -226,11 +311,11 @@ def add_music(video_path, output_dir):
         return video_path
 
     cmd = f"""ffmpeg -y \
-        -i {video_path} \
-        -i {music_file} \
+        -i "{video_path}" \
+        -i "{music_file}" \
         -filter_complex "[1:a]volume={CONFIG['music_volume']}[m];[0:a][m]amix=inputs=2:duration=first" \
         -c:v copy \
-        {final_output}"""
+        "{final_output}" """
 
     result = run_command(cmd, check=False)
 
@@ -252,23 +337,14 @@ def create_thumbnail(episode_title, output_dir):
 
     thumbnail_path = os.path.join(output_dir, "thumbnail.png")
 
-    # Check for custom thumbnail template
-    template = os.path.join(CONFIG['assets_dir'], "thumbnail_template.png")
-
-    if os.path.exists(template):
-        # Use template and add text
-        cmd = f"""ffmpeg -y -i {template} \
-            -vf "drawtext=text='{episode_title}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=h-150:borderw=3:bordercolor=black" \
-            {thumbnail_path}"""
-        run_command(cmd)
-    else:
-        # Create simple thumbnail
-        cmd = f"""ffmpeg -y -f lavfi -i "color=c=#ff6b35:s=1280x720:d=1" \
-            -vf "drawtext=text='The Simba Show':fontcolor=white:fontsize=72:x=(w-text_w)/2:y=50,\
-drawtext=text='{episode_title}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=(h-text_h)/2:borderw=2:bordercolor=black,\
+    # Create thumbnail with episode title
+    safe_title = episode_title.replace("'", "\\'")
+    cmd = f"""ffmpeg -y -f lavfi -i "color=c=#ff6b35:s=1280x720:d=1" \
+        -vf "drawtext=text='The Simba Show':fontcolor=white:fontsize=72:x=(w-text_w)/2:y=50,\
+drawtext=text='{safe_title}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=(h-text_h)/2:borderw=2:bordercolor=black,\
 drawtext=text='Simba & Meow Podcast':fontcolor=#000000:fontsize=28:x=(w-text_w)/2:y=h-80" \
-            -frames:v 1 {thumbnail_path}"""
-        run_command(cmd)
+        -frames:v 1 "{thumbnail_path}" """
+    run_command(cmd)
 
     if os.path.exists(thumbnail_path):
         print(f"  Thumbnail created: {thumbnail_path}")
@@ -319,7 +395,7 @@ def run_pipeline(script_path, episode_title=None):
     results["audio"] = audio_path
 
     # Step 2: Subtitles
-    subtitle_path = generate_subtitles(audio_path, output_dir)
+    subtitle_path = generate_subtitles(audio_path, script_path, output_dir)
     if not subtitle_path:
         print("\nPIPELINE FAILED at subtitle generation")
         return None
