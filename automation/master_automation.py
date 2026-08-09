@@ -123,7 +123,7 @@ def generate_script_with_ai(topic):
         client = openai.OpenAI()  # Uses OPENAI_API_KEY env var
 
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You write funny cat podcast scripts."},
                 {"role": "user", "content": SCRIPT_PROMPT.format(topic=topic)}
