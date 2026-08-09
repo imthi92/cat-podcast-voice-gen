@@ -156,3 +156,49 @@ app.run(port=5000)
 - https://www.youtube.com/watch?v=I7auQCywzTA
 - https://www.youtube.com/watch?v=ULX3GCtRUzo
 - https://www.youtube.com/watch?v=4VPoOVBNXn8
+
+## Future Plan: n8n Automation
+
+### What is n8n?
+n8n is a workflow automation tool (like Zapier but self-hosted). It can replace the Python scripts with a visual workflow.
+
+### Why n8n?
+- No code needed - visual drag & drop
+- Built-in HTTP requests, scheduling, error handling
+- Can run on local machine or cloud
+- Free tier available
+
+### n8n Workflow Plan
+```
+Trigger (Schedule: Daily at 9 AM)
+    ↓
+HTTP Request: Generate script via OpenAI API
+    ↓
+HTTP Request: Send script to Colab webhook
+    ↓
+HTTP Request: Download audio from Colab
+    ↓
+Execute Command: Run FFmpeg to create video
+    ↓
+HTTP Request: Upload to YouTube via API
+    ↓
+Send Notification (Email/Slack on success)
+```
+
+### n8n Setup (When Ready)
+1. Install n8n: `npm install n8n -g`
+2. Start: `n8n start`
+3. Open: `http://localhost:5678`
+4. Import workflow from `automation/n8n_workflow.json`
+5. Configure credentials (OpenAI, YouTube, Colab URL)
+
+### n8n Workflow File
+- Location: `automation/n8n_workflow.json`
+- Import this into n8n to get started
+
+### Benefits Over Current Python Scripts
+- **Error handling** built-in (retries, notifications)
+- **Visual dashboard** to see run history
+- **Easy to modify** without coding
+- **Scheduling** built-in (no Task Scheduler needed)
+- **Multi-step workflows** easy to create
