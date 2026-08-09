@@ -106,11 +106,8 @@ def generate_audio_placeholder(script_path, output_dir):
 
     output_file = os.path.join(output_dir, "placeholder_audio.wav")
 
-    # Create 30 seconds of silence
-    cmd = f"""ffmpeg -y -f lavfi -i "sine=frequency=0:duration=30" \
-        -ar {CONFIG['sample_rate']} -ac 1 \
-        {output_file}"""
-
+    # Create 30 seconds of silence - simple command
+    cmd = 'ffmpeg -y -f lavfi -i "sine=frequency=0:duration=30" -ar 24000 -ac 1 "' + output_file + '"'
     result = run_command(cmd, check=False)
 
     if os.path.exists(output_file):
