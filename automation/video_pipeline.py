@@ -108,6 +108,7 @@ def generate_audio_via_colab(script_path, output_dir):
                     print(f"  No audio in response")
         else:
             print(f"  Colab error: {response.status_code}")
+            print(f"  Response: {response.text[:200]}")
     except Exception as e:
         print(f"  Colab request failed: {e}")
 
