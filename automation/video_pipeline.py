@@ -12,6 +12,7 @@ import subprocess
 import tempfile
 import shutil
 import requests
+import base64
 from pathlib import Path
 from datetime import datetime
 
@@ -95,11 +96,16 @@ def generate_audio_via_colab(script_path, output_dir):
         if response.status_code == 200:
             result = response.json()
             if result.get("status") == "success":
-                audio_path = result.get("audio_path")
-                # Download the file
-                audio_output = os.path.join(output_dir, "audio_from_colab.wav")
-                print(f"  Audio received from Colab")
-                return audio_output
+                audio_base64 = result.get("audio_base64")
+                if audio_base64:
+                    # Decode base64 and save
+                    audio_output = os.path.join(output_dir, "audio_from_colab.wav")
+                    with open(audio_output, 'wb') as f:
+                        f.write(base64.b64decode(audio_base64))
+                    print(f"  Audio received from Colab")
+                    return audio_output
+                else:
+                    print(f"  No audio in response")
         else:
             print(f"  Colab error: {response.status_code}")
     except Exception as e:
