@@ -106,9 +106,22 @@ def generate_audio_placeholder(script_path, output_dir):
 
     output_file = os.path.join(output_dir, "placeholder_audio.wav")
 
-    # Create 30 seconds of silence - simple command
-    cmd = 'ffmpeg -y -f lavfi -i "sine=frequency=0:duration=30" -ar 24000 -ac 1 "' + output_file + '"'
-    result = run_command(cmd, check=False)
+    # Create 30 seconds of silence
+    cmd = [
+        'ffmpeg', '-y',
+        '-f', 'lavfi',
+        '-i', 'sine=frequency=0:duration=30',
+        '-ar', '24000',
+        '-ac', '1',
+        output_file
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode != 0:
+            print(f"  FFmpeg error: {result.stderr[:200]}")
+    except Exception as e:
+        print(f"  FFmpeg failed: {e}")
 
     if os.path.exists(output_file):
         print(f"  Placeholder audio created: {output_file}")
@@ -260,17 +273,29 @@ def create_video(audio_path, subtitle_path, output_dir):
     duration = get_audio_duration(audio_path)
     w, h = CONFIG['video_resolution']
 
-    # Create video with FFmpeg
-    cmd = f"""ffmpeg -y \
-        -loop 1 -i "{background}" \
-        -i "{audio_path}" \
-        -vf "scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2" \
-        -c:v libx264 -tune stillimage -c:a aac -b:a 192k \
-        -pix_fmt yuv420p -shortest \
-        -t {duration} \
-        "{video_output}" """
+    # Create video with FFmpeg using subprocess list
+    cmd = [
+        'ffmpeg', '-y',
+        '-loop', '1',
+        '-i', background,
+        '-i', audio_path,
+        '-vf', f'scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2',
+        '-c:v', 'libx264',
+        '-tune', 'stillimage',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-pix_fmt', 'yuv420p',
+        '-shortest',
+        '-t', str(duration),
+        video_output
+    ]
 
-    result = run_command(cmd, check=False)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            print(f"  FFmpeg error: {result.stderr[:200]}")
+    except Exception as e:
+        print(f"  FFmpeg failed: {e}")
 
     if os.path.exists(video_output):
         print(f"  Video created: {video_output}")
@@ -284,12 +309,19 @@ def create_placeholder_background(output_path):
     """Create a simple podcast studio background."""
     ensure_dir(os.path.dirname(output_path))
 
-    cmd = f"""ffmpeg -y -f lavfi -i "color=c=#1a1a2e:s=1280x720:d=1" \
-        -vf "drawtext=text='The Simba Show':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=50,\
-drawtext=text='Podcast Studio':fontcolor=#888888:fontsize=30:x=(w-text_w)/2:y=120,\
-drawtext=text='Simba & Meow':fontcolor=#ffaa00:fontsize=40:x=(w-text_w)/2:y=h-100" \
-        -frames:v 1 "{output_path}" """
-    run_command(cmd)
+    cmd = [
+        'ffmpeg', '-y',
+        '-f', 'lavfi',
+        '-i', 'color=c=#1a1a2e:s=1280x720:d=1',
+        '-vf', "drawtext=text='The Simba Show':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=50,drawtext=text='Podcast Studio':fontcolor=#888888:fontsize=30:x=(w-text_w)/2:y=120,drawtext=text='Simba & Meow':fontcolor=#ffaa00:fontsize=40:x=(w-text_w)/2:y=h-100",
+        '-frames:v', '1',
+        output_path
+    ]
+
+    try:
+        subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    except Exception as e:
+        print(f"  Background creation failed: {e}")
 
 
 # ============================================================
@@ -307,14 +339,19 @@ def add_music(video_path, output_dir):
         print("  No music file found, skipping...")
         return video_path
 
-    cmd = f"""ffmpeg -y \
-        -i "{video_path}" \
-        -i "{music_file}" \
-        -filter_complex "[1:a]volume={CONFIG['music_volume']}[m];[0:a][m]amix=inputs=2:duration=first" \
-        -c:v copy \
-        "{final_output}" """
+    cmd = [
+        'ffmpeg', '-y',
+        '-i', video_path,
+        '-i', music_file,
+        '-filter_complex', f'[1:a]volume={CONFIG["music_volume"]}[m];[0:a][m]amix=inputs=2:duration=first',
+        '-c:v', 'copy',
+        final_output
+    ]
 
-    result = run_command(cmd, check=False)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except Exception as e:
+        print(f"  Music addition failed: {e}")
 
     if os.path.exists(final_output):
         print(f"  Music added: {final_output}")
@@ -335,13 +372,22 @@ def create_thumbnail(episode_title, output_dir):
     thumbnail_path = os.path.join(output_dir, "thumbnail.png")
 
     # Create thumbnail with episode title
-    safe_title = episode_title.replace("'", "\\'")
-    cmd = f"""ffmpeg -y -f lavfi -i "color=c=#ff6b35:s=1280x720:d=1" \
-        -vf "drawtext=text='The Simba Show':fontcolor=white:fontsize=72:x=(w-text_w)/2:y=50,\
-drawtext=text='{safe_title}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=(h-text_h)/2:borderw=2:bordercolor=black,\
-drawtext=text='Simba & Meow Podcast':fontcolor=#000000:fontsize=28:x=(w-text_w)/2:y=h-80" \
-        -frames:v 1 "{thumbnail_path}" """
-    run_command(cmd)
+    safe_title = episode_title.replace("'", "")
+    vf_text = f"drawtext=text='The Simba Show':fontcolor=white:fontsize=72:x=(w-text_w)/2:y=50,drawtext=text='{safe_title}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=(h-text_h)/2:borderw=2:bordercolor=black,drawtext=text='Simba & Meow Podcast':fontcolor=#000000:fontsize=28:x=(w-text_w)/2:y=h-80"
+
+    cmd = [
+        'ffmpeg', '-y',
+        '-f', 'lavfi',
+        '-i', 'color=c=#ff6b35:s=1280x720:d=1',
+        '-vf', vf_text,
+        '-frames:v', '1',
+        thumbnail_path
+    ]
+
+    try:
+        subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    except Exception as e:
+        print(f"  Thumbnail creation failed: {e}")
 
     if os.path.exists(thumbnail_path):
         print(f"  Thumbnail created: {thumbnail_path}")
