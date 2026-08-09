@@ -201,8 +201,8 @@ def generate_subtitles_from_script(script_path, output_dir):
         time_offset += 3.5
 
         # Format SRT timestamps
-        start_str = f"00:{start_time//60:02d}:{start_time%60:02d},000"
-        end_str = f"00:{end_time//60:02d}:{end_time%60:02d},000"
+        start_str = f"00:{int(start_time)//60:02d}:{int(start_time)%60:02d},000"
+        end_str = f"00:{int(end_time)//60:02d}:{int(end_time)%60:02d},000"
 
         srt_content += f"{counter}\n{start_str} --> {end_str}\n{text}\n\n"
         counter += 1
