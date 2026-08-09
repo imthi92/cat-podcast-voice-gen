@@ -19,6 +19,14 @@ from datetime import datetime
 # CONFIGURATION
 # ============================================================
 
+# FFmpeg path (Windows - installed via winget)
+FFMPEG_PATH = r"C:\Users\Imtiyaz\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0-full_build\bin"
+FFMPEG_EXE = os.path.join(FFMPEG_PATH, "ffmpeg.exe")
+FFPROBE_EXE = os.path.join(FFMPEG_PATH, "ffprobe.exe")
+
+# Add FFmpeg to PATH for this session
+os.environ["PATH"] = FFMPEG_PATH + ";" + os.environ.get("PATH", "")
+
 CONFIG = {
     "model_path": "microsoft/VibeVoice-1.5B",
     "speaker_mapping": {
@@ -108,7 +116,7 @@ def generate_audio_placeholder(script_path, output_dir):
 
     # Create 30 seconds of silence
     cmd = [
-        'ffmpeg', '-y',
+        FFMPEG_EXE, '-y',
         '-f', 'lavfi',
         '-i', 'sine=frequency=0:duration=30',
         '-ar', '24000',
@@ -250,7 +258,7 @@ def generate_subtitles(audio_path, script_path, output_dir):
 def get_audio_duration(audio_path):
     """Get audio duration in seconds using ffprobe."""
     cmd = [
-        'ffprobe', '-v', 'error',
+        FFPROBE_EXE, '-v', 'error',
         '-show_entries', 'format=duration',
         '-of', 'default=noprint_wrappers=1:nokey=1',
         audio_path
@@ -273,7 +281,7 @@ def create_video(audio_path, subtitle_path, output_dir):
 
     # Simple approach: create colored background video with audio
     cmd = [
-        'ffmpeg', '-y',
+        FFMPEG_EXE, '-y',
         '-f', 'lavfi',
         '-i', f'color=c=#1a1a2e:s={w}x{h}:d={duration}',
         '-i', audio_path,
@@ -305,7 +313,7 @@ def create_placeholder_background(output_path):
     ensure_dir(os.path.dirname(output_path))
 
     cmd = [
-        'ffmpeg', '-y',
+        FFMPEG_EXE, '-y',
         '-f', 'lavfi',
         '-i', 'color=c=#1a1a2e:s=1280x720:d=1',
         '-vf', "drawtext=text='The Simba Show':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=50,drawtext=text='Podcast Studio':fontcolor=#888888:fontsize=30:x=(w-text_w)/2:y=120,drawtext=text='Simba & Meow':fontcolor=#ffaa00:fontsize=40:x=(w-text_w)/2:y=h-100",
@@ -335,7 +343,7 @@ def add_music(video_path, output_dir):
         return video_path
 
     cmd = [
-        'ffmpeg', '-y',
+        FFMPEG_EXE, '-y',
         '-i', video_path,
         '-i', music_file,
         '-filter_complex', f'[1:a]volume={CONFIG["music_volume"]}[m];[0:a][m]amix=inputs=2:duration=first',
@@ -370,7 +378,7 @@ def create_thumbnail(episode_title, output_dir):
     safe_title = episode_title[:50].replace("'", "").replace('"', '')
 
     cmd = [
-        'ffmpeg', '-y',
+        FFMPEG_EXE, '-y',
         '-f', 'lavfi',
         '-i', 'color=c=#ff6b35:s=1280x720:d=1',
         '-frames:v', '1',
