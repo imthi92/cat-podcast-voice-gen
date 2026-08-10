@@ -32,6 +32,21 @@ CONFIG = {
 }
 
 # ============================================================
+# EXISTING SCRIPTS
+# ============================================================
+
+SCRIPTS_DIR = r"C:\Users\Imtiyaz\Documents\New OpenCode Project\scripts"
+
+def get_existing_scripts():
+    """Get list of existing scripts."""
+    scripts = []
+    if os.path.exists(SCRIPTS_DIR):
+        for f in sorted(os.listdir(SCRIPTS_DIR)):
+            if f.endswith('.txt'):
+                scripts.append(os.path.join(SCRIPTS_DIR, f))
+    return scripts
+
+# ============================================================
 # EPISODE TEMPLATES (Fallback when AI fails)
 # ============================================================
 
@@ -359,18 +374,37 @@ def run_full_automation():
         # Step 1: Get topic and script
         print("\n[STEP 1] Getting script...")
 
-        # Try AI first
-        template = get_random_unprocessed_topic()
-        topic = template["topic"]
-
-        script_content = generate_script_with_ai(topic)
-
-        # Fallback to template if AI fails
-        if not script_content:
-            print("  Using template script...")
-            script_content = template["script"]
-
-        script_path = save_script(script_content, topic)
+        # Try existing scripts first
+        existing_scripts = get_existing_scripts()
+        if existing_scripts:
+            # Use first unprocessed script
+            data = load_processed()
+            processed_scripts = [ep["metadata"].get("script_path") for ep in data["episodes"]]
+            
+            for script in existing_scripts:
+                if script not in processed_scripts:
+                    script_path = script
+                    topic = os.path.basename(script).replace('.txt', '').replace('_', ' ').title()
+                    print(f"  Using existing script: {os.path.basename(script)}")
+                    break
+            else:
+                # All scripts processed, use AI
+                template = get_random_unprocessed_topic()
+                topic = template["topic"]
+                script_content = generate_script_with_ai(topic)
+                if not script_content:
+                    print("  Using template script...")
+                    script_content = template["script"]
+                script_path = save_script(script_content, topic)
+        else:
+            # No existing scripts, use AI
+            template = get_random_unprocessed_topic()
+            topic = template["topic"]
+            script_content = generate_script_with_ai(topic)
+            if not script_content:
+                print("  Using template script...")
+                script_content = template["script"]
+            script_path = save_script(script_content, topic)
 
         # Step 2: Run video pipeline
         print("\n[STEP 2] Running video pipeline...")
