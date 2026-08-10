@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Cat Podcast - Episode Generator (Fully Automated)
-Edge TTS + FFmpeg podcast-style video + YouTube upload
+Cat Podcast - Episode Generator v2 (Professional Quality)
+Edge TTS + FFmpeg with visual effects + YouTube upload
 """
 
 import os
@@ -11,6 +11,7 @@ import subprocess
 import asyncio
 import glob
 import pickle
+import random
 from pathlib import Path
 from datetime import datetime
 
@@ -23,8 +24,8 @@ SCRIPTS_DIR = os.path.join(os.path.dirname(BASE_DIR), "scripts")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 PROCESSED_FILE = os.path.join(BASE_DIR, "processed_episodes.json")
 IMAGES_DIR = os.path.join(BASE_DIR, "downloaded_images")
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
-# Edge TTS voices
 VOICES = {
     "Speaker 1": "en-US-GuyNeural",
     "Speaker 2": "en-US-JennyNeural",
@@ -36,7 +37,6 @@ FFMPEG_EXE = os.path.join(FFMPEG_PATH, "ffmpeg.exe")
 FFPROBE_EXE = os.path.join(FFMPEG_PATH, "ffprobe.exe")
 os.environ["PATH"] = FFMPEG_PATH + ";" + os.environ.get("PATH", "")
 
-# YouTube
 TOKEN_FILE = os.path.join(BASE_DIR, "youtube_token.pickle")
 
 # ============================================================
@@ -88,7 +88,7 @@ def get_next_script(specific_number=None):
     return None
 
 # ============================================================
-# AUDIO GENERATION (Edge TTS - FREE)
+# AUDIO GENERATION (Edge TTS)
 # ============================================================
 
 def parse_script(script_path):
@@ -108,7 +108,7 @@ def parse_script(script_path):
     return lines
 
 def generate_audio(script_path, output_dir):
-    print("[1/4] Generating audio...")
+    print("[1/5] Generating audio...")
     import edge_tts
 
     lines = parse_script(script_path)
@@ -141,35 +141,42 @@ def generate_audio(script_path, output_dir):
 
     print(f"  Generated {len(segment_files)} segments")
 
-    # Concat with FFmpeg
+    # Concat segments
     concat_file = os.path.join(segments_dir, "concat.txt")
     with open(concat_file, 'w') as f:
         for seg in segment_files:
             f.write(f"file '{seg.replace(os.sep, '/')}'\n")
 
-    audio_output = os.path.join(output_dir, "episode_audio.mp3")
+    raw_audio = os.path.join(output_dir, "raw_audio.mp3")
     cmd = [FFMPEG_EXE, '-y', '-f', 'concat', '-safe', '0',
-           '-i', concat_file, '-c', 'copy', audio_output]
+           '-i', concat_file, '-c', 'copy', raw_audio]
+    subprocess.run(cmd, capture_output=True, timeout=60)
 
-    try:
-        subprocess.run(cmd, capture_output=True, timeout=60)
-    except:
+    if not os.path.exists(raw_audio):
         return None
 
-    if os.path.exists(audio_output):
-        print(f"  Audio ready")
-        return audio_output
-    return None
+    # Normalize audio volume
+    normalized_audio = os.path.join(output_dir, "episode_audio.mp3")
+    cmd = [FFMPEG_EXE, '-y', '-i', raw_audio,
+           '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
+           '-c:a', 'libmp3lame', '-b:a', '192k',
+           normalized_audio]
+    subprocess.run(cmd, capture_output=True, timeout=60)
+
+    if os.path.exists(normalized_audio):
+        print(f"  Audio ready (normalized)")
+        return normalized_audio
+
+    return raw_audio
 
 # ============================================================
 # SUBTITLE GENERATION
 # ============================================================
 
 def generate_subtitles(script_path, audio_path, output_dir):
-    print("[2/4] Generating subtitles...")
+    print("[2/5] Generating subtitles...")
     srt_path = os.path.join(output_dir, "subtitles.srt")
 
-    # Get audio duration
     cmd = [FFPROBE_EXE, '-v', 'error', '-show_entries', 'format=duration',
            '-of', 'default=noprint_wrappers=1:nokey=1', audio_path]
     try:
@@ -208,7 +215,7 @@ def generate_subtitles(script_path, audio_path, output_dir):
     return srt_path
 
 # ============================================================
-# VIDEO CREATION (Podcast Style)
+# VIDEO CREATION (Professional Quality)
 # ============================================================
 
 def get_audio_duration(audio_path):
@@ -220,44 +227,86 @@ def get_audio_duration(audio_path):
     except:
         return 60
 
-def find_background():
+def get_all_backgrounds():
+    """Get all available background images."""
+    images = []
     if os.path.exists(IMAGES_DIR):
-        # Priority: the two-cat podcast image
         for f in os.listdir(IMAGES_DIR):
-            if 'Two_cartoon_cats' in f and f.endswith('.jpg') and '(' not in f:
-                return os.path.join(IMAGES_DIR, f)
-        for f in os.listdir(IMAGES_DIR):
-            if 'Wide' in f and f.endswith('.jpg'):
-                return os.path.join(IMAGES_DIR, f)
-    return None
+            if f.endswith('.jpg') and not f.startswith('episode'):
+                images.append(os.path.join(IMAGES_DIR, f))
+    return images
 
-def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_number):
-    print("[3/4] Creating video...")
+def create_intro_screen(output_dir, episode_title, episode_number):
+    """Create a 3-second intro screen."""
+    intro_path = os.path.join(output_dir, "intro.mp4")
 
-    video_output = os.path.join(output_dir, "final_video.mp4")
-    duration = get_audio_duration(audio_path)
-    w, h = 1280, 720
-
-    bg = find_background()
-    if not bg:
-        print("  ERROR: No background image")
-        return None
-
-    print(f"  Background: {os.path.basename(bg)}")
-    print(f"  Duration: {duration:.0f}s")
-
-    total_frames = int(duration * 24)
-
-    # Ken Burns slow zoom effect
+    # Create intro with animated text
     cmd = [
         FFMPEG_EXE, '-y',
-        '-loop', '1', '-i', bg,
+        '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=3',
+        '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.1',
+        '-vf', (
+            "drawtext=text='The Simba Show':fontcolor=white:fontsize=60:"
+            "x=(w-text_w)/2:y=(h-text_h)/2-50,"
+            "drawtext=text='Episode %d':fontcolor=#ffaa00:fontsize=36:"
+            "x=(w-text_w)/2:y=(h-text_h)/2+30" % episode_number
+        ),
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+        '-t', '3',
+        intro_path
+    ]
+
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=30)
+    except:
+        pass
+
+    return intro_path if os.path.exists(intro_path) else None
+
+def create_outro_screen(output_dir):
+    """Create a 3-second outro screen."""
+    outro_path = os.path.join(output_dir, "outro.mp4")
+
+    cmd = [
+        FFMPEG_EXE, '-y',
+        '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=3',
+        '-vf', (
+            "drawtext=text='Subscribe for more!':fontcolor=white:fontsize=48:"
+            "x=(w-text_w)/2:y=(h-text_h)/2-30,"
+            "drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=36:"
+            "x=(w-text_w)/2:y=(h-text_h)/2+30"
+        ),
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+        '-t', '3',
+        outro_path
+    ]
+
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=30)
+    except:
+        pass
+
+    return outro_path if os.path.exists(outro_path) else None
+
+def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_number):
+    """Create the main podcast video with visual effects."""
+    video_path = os.path.join(output_dir, "main_video.mp4")
+    duration = get_audio_duration(audio_path)
+    w, h = 1280, 720
+    total_frames = int(duration * 24)
+
+    # Ken Burns slow zoom
+    zoom = f"zoompan=z='min(zoom+0.001,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+
+    cmd = [
+        FFMPEG_EXE, '-y',
+        '-loop', '1', '-i', bg_image,
         '-i', audio_path,
         '-c:v', 'libx264', '-c:a', 'aac', '-b:a', '192k',
         '-pix_fmt', 'yuv420p',
-        '-vf', f'scale=8000:-1,zoompan=z=\'min(zoom+0.0012,1.4)\':x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':d={total_frames}:s={w}x{h}:fps=24',
+        '-vf', f'scale=8000:-1,{zoom}:d={total_frames}:s={w}x{h}:fps=24',
         '-shortest',
-        video_output
+        video_path
     ]
 
     try:
@@ -267,27 +316,127 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
     except Exception as e:
         print(f"  FFmpeg failed: {e}")
 
-    if os.path.exists(video_output):
-        size_mb = os.path.getsize(video_output) / (1024 * 1024)
-        print(f"  Video: {size_mb:.1f} MB")
-        return video_output
-    return None
+    return video_path if os.path.exists(video_path) else None
+
+def add_background_music(video_path, audio_path, output_dir):
+    """Mix background music with speech audio."""
+    music_file = os.path.join(ASSETS_DIR, "ambient_bg.mp3")
+    final_path = os.path.join(output_dir, "final_with_music.mp4")
+
+    if not os.path.exists(music_file):
+        print("  No background music found, skipping")
+        return video_path
+
+    # Get audio duration to loop music if needed
+    duration = get_audio_duration(audio_path)
+
+    cmd = [
+        FFMPEG_EXE, '-y',
+        '-i', video_path,
+        '-stream_loop', '-1', '-i', music_file,
+        '-filter_complex',
+        f'[1:a]volume=0.08,atrim=0:{duration},afade=t=in:d=3,afade=t=out:st={duration-3}:d=3[music];[0:a][music]amix=inputs=2:duration=first:dropout_transition=2',
+        '-c:v', 'copy',
+        '-c:a', 'aac', '-b:a', '192k',
+        final_path
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode != 0:
+            print(f"  Music mix error: {result.stderr[:200]}")
+    except:
+        pass
+
+    if os.path.exists(final_path):
+        print("  Background music added")
+        return final_path
+
+    return video_path
+
+def add_subtitles(video_path, subtitle_path, output_dir):
+    """Burn subtitles into video."""
+    final_path = os.path.join(output_dir, "final_video.mp4")
+
+    if not subtitle_path or not os.path.exists(subtitle_path):
+        return video_path
+
+    # Copy subtitles to output dir with same name
+    import shutil
+    srt_copy = os.path.join(output_dir, "subtitles.srt")
+    if subtitle_path != srt_copy:
+        shutil.copy2(subtitle_path, srt_copy)
+
+    cmd = [
+        FFMPEG_EXE, '-y',
+        '-i', video_path,
+        '-vf', f"subtitles=subtitles.srt:force_style='FontSize=20,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=2,Shadow=1'",
+        '-c:v', 'libx264', '-crf', '23',
+        '-c:a', 'copy',
+        final_path
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, cwd=output_dir)
+        if result.returncode != 0:
+            print(f"  Subtitle burn error, using video without subs")
+            return video_path
+    except:
+        return video_path
+
+    if os.path.exists(final_path):
+        print("  Subtitles burned in")
+        return final_path
+
+    return video_path
+
+def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_number):
+    print("[3/5] Creating video...")
+
+    # Get background image
+    backgrounds = get_all_backgrounds()
+    if not backgrounds:
+        print("  ERROR: No background images")
+        return None
+
+    bg = random.choice(backgrounds)
+    print(f"  Background: {os.path.basename(bg)}")
+    print(f"  Duration: {get_audio_duration(audio_path):.0f}s")
+
+    # Create main video with effects
+    video_path = create_main_video(audio_path, bg, output_dir, episode_title, episode_number)
+    if not video_path:
+        return None
+
+    # Add background music
+    video_path = add_background_music(video_path, audio_path, output_dir)
+
+    # Burn subtitles
+    video_path = add_subtitles(video_path, subtitle_path, output_dir)
+
+    return video_path
 
 # ============================================================
-# THUMBNAIL
+# THUMBNAIL (Professional)
 # ============================================================
 
 def create_thumbnail(output_dir, episode_title, episode_number):
-    print("[4/4] Creating thumbnail...")
+    print("[4/5] Creating thumbnail...")
     thumbnail = os.path.join(output_dir, "thumbnail.png")
-    bg = find_background()
 
-    if not bg:
+    backgrounds = get_all_backgrounds()
+    if not backgrounds:
         return None
 
-    cmd = [FFMPEG_EXE, '-y', '-i', bg,
-           '-vf', 'scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720',
-           '-frames:v', '1', thumbnail]
+    bg = random.choice(backgrounds)
+
+    # Simple thumbnail - just scale the background image
+    cmd = [
+        FFMPEG_EXE, '-y', '-i', bg,
+        '-vf', 'scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720',
+        '-frames:v', '1',
+        thumbnail
+    ]
 
     try:
         subprocess.run(cmd, capture_output=True, timeout=30)
@@ -304,7 +453,7 @@ def create_thumbnail(output_dir, episode_title, episode_number):
 # ============================================================
 
 def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None):
-    print("\n[UPLOAD] YouTube...")
+    print("\n[5/5] YouTube upload...")
     try:
         from google.oauth2.credentials import Credentials
         from google.auth.transport.requests import Request
@@ -378,12 +527,202 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None)
         return None
 
 # ============================================================
+# YOUTUBE SHORTS GENERATION
+# ============================================================
+
+def get_audio_segment(audio_path, start_sec, duration_sec, output_path):
+    """Extract a segment from audio."""
+    cmd = [
+        FFMPEG_EXE, '-y',
+        '-i', audio_path,
+        '-ss', str(start_sec),
+        '-t', str(duration_sec),
+        '-c', 'copy',
+        output_path
+    ]
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=30)
+    except:
+        pass
+    return os.path.exists(output_path)
+
+def create_short_video(audio_path, bg_image, output_dir, title, subtitle_text):
+    """Create a vertical Short video (9:16, 1080x1920)."""
+    duration = get_audio_duration(audio_path)
+    w, h = 1080, 1920
+    total_frames = int(duration * 24)
+
+    video_path = os.path.join(output_dir, "short_video.mp4")
+
+    cmd = [
+        FFMPEG_EXE, '-y',
+        '-loop', '1', '-i', bg_image,
+        '-i', audio_path,
+        '-c:v', 'libx264', '-c:a', 'aac', '-b:a', '192k',
+        '-pix_fmt', 'yuv420p',
+        '-vf', f'scale=8000:-1,zoompan=z=\'min(zoom+0.001,1.3)\':x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':d={total_frames}:s={w}x{h}:fps=24',
+        '-shortest',
+        video_path
+    ]
+
+    try:
+        subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except:
+        pass
+
+    return video_path if os.path.exists(video_path) else None
+
+def upload_short(video_path, title, description, tags, thumbnail_path=None):
+    """Upload a Short to YouTube with #Shorts tag."""
+    try:
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaFileUpload
+    except ImportError:
+        return None
+
+    if not os.path.exists(TOKEN_FILE):
+        return None
+
+    with open(TOKEN_FILE, 'rb') as f:
+        creds = pickle.load(f)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            with open(TOKEN_FILE, 'wb') as f:
+                pickle.dump(creds, f)
+        else:
+            return None
+
+    youtube = build('youtube', 'v3', credentials=creds)
+
+    # Add #Shorts to tags
+    all_tags = tags + ["Shorts", "YouTube Shorts", "Short"]
+
+    body = {
+        "snippet": {
+            "title": title[:100],
+            "description": description[:5000],
+            "tags": all_tags[:500],
+            "categoryId": "24",
+            "defaultLanguage": "en",
+        },
+        "status": {
+            "privacyStatus": "public",
+            "embeddable": True,
+            "publicStatsViewable": True,
+            "selfDeclaredMadeForKids": False,
+        },
+    }
+
+    media = MediaFileUpload(video_path, mimetype="video/mp4", resumable=True, chunksize=10*1024*1024)
+
+    try:
+        request = youtube.videos().insert(part=",".join(body.keys()), body=body, media_body=media)
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+            if status:
+                print(f"  {int(status.progress()*100)}%")
+
+        video_id = response["id"]
+        url = f"https://youtube.com/shorts/{video_id}"
+        print(f"  Short uploaded: {url}")
+
+        if thumbnail_path and os.path.exists(thumbnail_path):
+            try:
+                youtube.thumbnails().set(
+                    videoId=video_id,
+                    media_body=MediaFileUpload(thumbnail_path, mimetype="image/png")
+                ).execute()
+            except:
+                pass
+
+        return {"video_id": video_id, "url": url}
+    except Exception as e:
+        print(f"  Short upload failed: {e}")
+        return None
+
+def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_number, bg_image):
+    """Generate 2 YouTube Shorts from the episode."""
+    print("\n[SHORTS] Generating 2 Shorts...")
+    duration = get_audio_duration(audio_path)
+
+    shorts_dir = os.path.join(output_dir, "shorts")
+    os.makedirs(shorts_dir, exist_ok=True)
+
+    # Parse script to find good clip points
+    with open(script_path, 'r', encoding='utf-8') as f:
+        lines = [l.strip() for l in f.readlines() if l.strip() and ":" in l]
+
+    time_per_line = duration / max(len(lines), 1)
+    short_results = []
+
+    # Short 1: Opening hook (first 45 seconds)
+    short1_dir = os.path.join(shorts_dir, "short_1")
+    os.makedirs(short1_dir, exist_ok=True)
+    short1_audio = os.path.join(short1_dir, "short1_audio.mp3")
+
+    clip_duration = min(45, duration)
+    if get_audio_segment(audio_path, 0, clip_duration, short1_audio):
+        # Get first subtitle line
+        first_line = lines[0].split(":", 1)[1].strip() if lines else "The Simba Show"
+
+        short1_video = create_short_video(
+            short1_audio, bg_image, short1_dir,
+            f"EP {episode_number:02d} - Hook",
+            first_line
+        )
+
+        if short1_video:
+            title = f"The Simba Show - {episode_title} (Short 1)"
+            desc = f"Cat podcast short! Full episode in bio.\n\n#Shorts #CatPodcast #FunnyCats #SimbaAndMeow"
+            tags = ["cat podcast", "funny cats", "Shorts", "simba and meow"]
+
+            upload1 = upload_short(short1_video, title, desc, tags)
+            short_results.append({"short": 1, "upload": upload1, "video": short1_video})
+            print(f"  Short 1 done")
+
+    # Short 2: Best moment (middle section, 30-60 seconds)
+    short2_dir = os.path.join(shorts_dir, "short_2")
+    os.makedirs(short2_dir, exist_ok=True)
+    short2_audio = os.path.join(short2_dir, "short2_audio.mp3")
+
+    # Start from middle of episode
+    start_time = max(0, (duration / 2) - 15)
+    clip_duration = min(45, duration - start_time)
+
+    if get_audio_segment(audio_path, start_time, clip_duration, short2_audio):
+        # Get a middle subtitle line
+        mid_idx = len(lines) // 2
+        mid_line = lines[mid_idx].split(":", 1)[1].strip() if mid_idx < len(lines) else "Office gossip"
+
+        short2_video = create_short_video(
+            short2_audio, bg_image, short2_dir,
+            f"EP {episode_number:02d} - Best Moment",
+            mid_line
+        )
+
+        if short2_video:
+            title = f"The Simba Show - {episode_title} (Short 2)"
+            desc = f"Best moment from the cat podcast!\n\n#Shorts #CatPodcast #FunnyCats #SimbaAndMeow"
+            tags = ["cat podcast", "funny cats", "Shorts", "simba and meow"]
+
+            upload2 = upload_short(short2_video, title, desc, tags)
+            short_results.append({"short": 2, "upload": upload2, "video": short2_video})
+            print(f"  Short 2 done")
+
+    return short_results
+
+# ============================================================
 # MAIN
 # ============================================================
 
 def generate_episode(specific_number=None):
     print("=" * 60)
-    print("CAT PODCAST - EPISODE GENERATOR")
+    print("CAT PODCAST - EPISODE GENERATOR v2")
     print("=" * 60)
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -392,7 +731,6 @@ def generate_episode(specific_number=None):
         print("ERROR: No scripts found!")
         return None
 
-    # Extract episode number from filename
     basename = os.path.basename(script_path)
     ep_num = 1
     for part in basename.replace(".", "_").split("_"):
@@ -401,7 +739,6 @@ def generate_episode(specific_number=None):
             break
 
     episode_title = basename.replace(".txt", "").replace("_", " ").title()
-    episode_title = f"Cat Office Gossip - {episode_title}"
 
     print(f"\nScript: {basename}")
     print(f"Title: {episode_title}")
@@ -428,26 +765,35 @@ def generate_episode(specific_number=None):
     # Step 4: Thumbnail
     thumbnail_path = create_thumbnail(output_dir, episode_title, ep_num)
 
-    # Upload
-    description = f"""Cat Podcast - {episode_title}
+    # Step 5: Generate 2 Shorts
+    backgrounds = get_all_backgrounds()
+    bg_image = random.choice(backgrounds) if backgrounds else None
+    short_results = []
+    if bg_image:
+        short_results = generate_shorts(audio_path, script_path, output_dir, episode_title, ep_num, bg_image)
 
-Simba and Meow are back! This time they talk about {episode_title.lower()}.
+    # Step 6: Upload full episode
+    description = f"""The Simba Show - Episode {ep_num}: {episode_title}
 
-Simba - Confident, works in Marketing, shares office gossip
-Meow - Intelligent, sarcastic, works in Finance
+Simba and Meow are back with another hilarious episode! This time they talk about {episode_title.lower()}.
 
-New episodes daily! Subscribe!
+Characters:
+- Simba: Confident, works in Marketing, shares office gossip
+- Meow: Intelligent, sarcastic, works in Finance
 
-#CatPodcast #SimbaAndMeow #FunnyCats #OfficeHumor #TheSimbaShow"""
+New episodes daily! Subscribe and hit the bell!
+
+#CatPodcast #SimbaAndMeow #FunnyCats #OfficeHumor #TheSimbaShow #CatComedy"""
 
     tags = [
         "cat podcast", "funny cats", "office cats", "cat comedy",
         "simba and meow", "cat dialogue", "funny cat videos",
         "cat humor", "office humor", "the simba show", "office gossip",
-        "cat talk", "podcast", "daily podcast"
+        "cat talk", "podcast", "daily podcast", "cat show",
+        "funny animals", "cat entertainment", "workplace comedy"
     ]
 
-    upload_result = upload_to_youtube(video_path, episode_title, description, tags, thumbnail_path)
+    upload_result = upload_to_youtube(video_path, f"The Simba Show - {episode_title}", description, tags, thumbnail_path)
 
     metadata = {
         "script": script_path,
@@ -457,6 +803,7 @@ New episodes daily! Subscribe!
         "video": video_path,
         "thumbnail": thumbnail_path,
         "upload": upload_result,
+        "shorts": short_results,
         "timestamp": timestamp,
     }
 
@@ -467,9 +814,12 @@ New episodes daily! Subscribe!
 
     print("\n" + "=" * 60)
     print("DONE!")
-    print(f"  Video: {video_path}")
+    print(f"  Full Video: {video_path}")
     if upload_result:
         print(f"  YouTube: {upload_result['url']}")
+    for sr in short_results:
+        if sr.get("upload"):
+            print(f"  Short {sr['short']}: {sr['upload']['url']}")
     print("=" * 60)
 
     return metadata
