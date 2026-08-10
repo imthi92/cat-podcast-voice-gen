@@ -1,0 +1,21 @@
+# Secrets
+automation/github_secrets/
+automation/client_secret.json
+automation/youtube_token.pickle
+
+# Output files
+output/
+automation/output/
+
+# Audio files (large)
+*.wav
+*.mp3
+*.mp4
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db

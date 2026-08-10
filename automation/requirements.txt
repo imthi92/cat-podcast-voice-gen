@@ -1,23 +1,6 @@
-# Cat Podcast Automation - Requirements
-# Install: pip install -r requirements.txt
-
-# Video/Audio processing
-moviepy>=1.0.3
-ffmpeg-python>=0.2.0
-Pillow>=9.0.0
-
-# Speech recognition (subtitles)
-openai-whisper>=20231117
-
-# YouTube API
-google-api-python-client>=2.0.0
-google-auth>=2.0.0
-google-auth-oauthlib>=0.5.0
-google-auth-httplib2>=0.1.0
-
-# AI script generation (optional)
-openai>=1.0.0
-
-# Utilities
-requests>=2.28.0
-python-dotenv>=0.20.0
+edge-tts
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+requests

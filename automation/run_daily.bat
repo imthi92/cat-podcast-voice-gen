@@ -1,9 +1,19 @@
 @echo off
-REM Cat Podcast Automation - Daily Runner
-REM Schedule this in Windows Task Scheduler to run daily
+REM ============================================
+REM Cat Podcast - Daily Episode Generator
+REM Run via Task Scheduler or manually
+REM ============================================
 
 cd /d "C:\Users\Imtiyaz\Documents\New OpenCode Project\automation"
-python scheduler.py
 
-REM Log output
-echo %date% %time% - Automation completed >> automation_log.txt
+echo [%date% %time%] Starting episode generation...
+
+python generate_episode.py
+
+if %errorlevel% equ 0 (
+    echo [%date% %time%] SUCCESS >> automation_log.txt
+) else (
+    echo [%date% %time%] FAILED >> automation_log.txt
+)
+
+echo [%date% %time%] Done.
