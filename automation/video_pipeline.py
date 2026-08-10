@@ -45,6 +45,8 @@ CONFIG = {
     "assets_dir": "./assets",
     # Colab webhook URL (set via environment variable or here)
     "colab_webhook_url": os.environ.get("COLAB_WEBHOOK_URL", ""),
+    # Kaggle webhook URL (fallback)
+    "kaggle_webhook_url": os.environ.get("KAGGLE_WEBHOOK_URL", ""),
 }
 
 # ============================================================
@@ -72,45 +74,51 @@ def ensure_dir(path):
 # ============================================================
 
 def generate_audio_via_colab(script_path, output_dir):
-    """Generate audio using Colab webhook."""
+    """Generate audio using Colab/Kaggle webhook."""
     webhook_url = CONFIG.get("colab_webhook_url", "")
-    if not webhook_url:
-        print("  No Colab webhook URL configured")
+    kaggle_url = CONFIG.get("kaggle_webhook_url", "")
+    
+    # Try Colab first, then Kaggle
+    urls_to_try = [u for u in [webhook_url, kaggle_url] if u]
+    
+    if not urls_to_try:
+        print("  No webhook URL configured")
         return None
 
-    print(f"  Sending to Colab: {webhook_url[:50]}...")
+    for webhook_url in urls_to_try:
+        print(f"  Sending to: {webhook_url[:50]}...")
 
-    try:
-        with open(script_path, 'r', encoding='utf-8') as f:
-            script_content = f.read()
+        try:
+            with open(script_path, 'r', encoding='utf-8') as f:
+                script_content = f.read()
 
-        response = requests.post(
-            webhook_url,
-            json={
-                "script": script_content,
-                "filename": os.path.basename(script_path)
-            },
-            timeout=600
-        )
+            response = requests.post(
+                webhook_url,
+                json={
+                    "script": script_content,
+                    "filename": os.path.basename(script_path)
+                },
+                timeout=600
+            )
 
-        if response.status_code == 200:
-            result = response.json()
-            if result.get("status") == "success":
-                audio_base64 = result.get("audio_base64")
-                if audio_base64:
-                    # Decode base64 and save
-                    audio_output = os.path.join(output_dir, "audio_from_colab.wav")
-                    with open(audio_output, 'wb') as f:
-                        f.write(base64.b64decode(audio_base64))
-                    print(f"  Audio received from Colab")
-                    return audio_output
-                else:
-                    print(f"  No audio in response")
-        else:
-            print(f"  Colab error: {response.status_code}")
-            print(f"  Response: {response.text[:200]}")
-    except Exception as e:
-        print(f"  Colab request failed: {e}")
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("status") == "success":
+                    audio_base64 = result.get("audio_base64")
+                    if audio_base64:
+                        # Decode base64 and save
+                        audio_output = os.path.join(output_dir, "audio_from_colab.wav")
+                        with open(audio_output, 'wb') as f:
+                            f.write(base64.b64decode(audio_base64))
+                        print(f"  Audio received")
+                        return audio_output
+                    else:
+                        print(f"  No audio in response")
+            else:
+                print(f"  Error: {response.status_code}")
+                print(f"  Response: {response.text[:200]}")
+        except Exception as e:
+            print(f"  Request failed: {e}")
 
     return None
 
