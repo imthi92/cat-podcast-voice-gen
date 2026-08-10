@@ -282,23 +282,54 @@ def create_video(audio_path, subtitle_path, output_dir):
     print("\n[3/5] Creating video with FFmpeg...")
 
     video_output = os.path.join(output_dir, "final_video.mp4")
-
     duration = get_audio_duration(audio_path)
     w, h = CONFIG['video_resolution']
 
-    # Simple approach: create colored background video with audio
-    cmd = [
-        FFMPEG_EXE, '-y',
-        '-f', 'lavfi',
-        '-i', f'color=c=#1a1a2e:s={w}x{h}:d={duration}',
-        '-i', audio_path,
-        '-c:v', 'libx264',
-        '-c:a', 'aac',
-        '-b:a', '192k',
-        '-pix_fmt', 'yuv420p',
-        '-shortest',
-        video_output
-    ]
+    # Use background image if available
+    bg_image = os.path.join(CONFIG['assets_dir'], "background.jpg")
+    if not os.path.exists(bg_image):
+        # Try downloaded images
+        downloaded = os.path.join(CONFIG['output_dir'].replace('output', ''), "downloaded_images")
+        if os.path.exists(downloaded):
+            for f in os.listdir(downloaded):
+                if 'Wide' in f or 'studio' in f.lower():
+                    bg_image = os.path.join(downloaded, f)
+                    break
+            if not os.path.exists(bg_image):
+                for f in os.listdir(downloaded):
+                    if f.endswith('.jpg'):
+                        bg_image = os.path.join(downloaded, f)
+                        break
+
+    if os.path.exists(bg_image):
+        print(f"  Using background: {os.path.basename(bg_image)}")
+        cmd = [
+            FFMPEG_EXE, '-y',
+            '-loop', '1',
+            '-i', bg_image,
+            '-i', audio_path,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            '-pix_fmt', 'yuv420p',
+            '-vf', f'scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2',
+            '-shortest',
+            video_output
+        ]
+    else:
+        print("  Using colored background (no image found)")
+        cmd = [
+            FFMPEG_EXE, '-y',
+            '-f', 'lavfi',
+            '-i', f'color=c=#1a1a2e:s={w}x{h}:d={duration}',
+            '-i', audio_path,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            '-pix_fmt', 'yuv420p',
+            '-shortest',
+            video_output
+        ]
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
