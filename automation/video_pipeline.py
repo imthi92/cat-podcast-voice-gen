@@ -303,6 +303,7 @@ def create_video(audio_path, subtitle_path, output_dir):
 
     if os.path.exists(bg_image):
         print(f"  Using background: {os.path.basename(bg_image)}")
+        # Ken Burns effect - slow zoom in with pan
         cmd = [
             FFMPEG_EXE, '-y',
             '-loop', '1',
@@ -312,7 +313,7 @@ def create_video(audio_path, subtitle_path, output_dir):
             '-c:a', 'aac',
             '-b:a', '192k',
             '-pix_fmt', 'yuv420p',
-            '-vf', f'scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2',
+            '-vf', f'scale=8000:-1,zoompan=z=\'min(zoom+0.0015,1.5)\':x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':d={int(duration*24)}:s={w}x{h}:fps=24',
             '-shortest',
             video_output
         ]
