@@ -26,7 +26,7 @@ from youtube_upload import upload_episode
 CONFIG = {
     "openai_key": os.environ.get("OPENAI_API_KEY", ""),
     "colab_webhook": os.environ.get("COLAB_WEBHOOK_URL", ""),
-    "publish": False,  # Set True to auto-publish (default: private)
+    "publish": True,  # Set True to auto-publish (default: public)
     "max_retries": 3,
     "episodes_per_run": 1,  # How many episodes to generate per run
 }
