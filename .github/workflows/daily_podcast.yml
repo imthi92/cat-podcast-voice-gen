@@ -19,10 +19,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak
 
       - name: Install dependencies
-        run: pip install edge-tts requests google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
+        run: pip install edge-tts gTTS pyttsx3 requests google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
 
       - name: Decode YouTube credentials
         run: |
@@ -36,6 +36,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: 1
           HF_API_KEY: ${{ secrets.HF_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Upload video artifacts
         uses: actions/upload-artifact@v4

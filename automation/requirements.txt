@@ -1,4 +1,6 @@
 edge-tts
+gTTS
+pyttsx3
 requests
 google-api-python-client
 google-auth
