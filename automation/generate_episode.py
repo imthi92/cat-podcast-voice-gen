@@ -144,24 +144,33 @@ def generate_script_with_ai():
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": """You write funny cat podcast scripts. 
-Characters:
-- Speaker 1 (Simba): Confident, slightly stupid, works in Marketing, shares office gossip, always getting into trouble
-- Speaker 2 (Meow): Intelligent, sarcastic, works in Finance, keeps Simba in check, dry humor
+                {"role": "system", "content": """You write natural, funny cat podcast scripts that sound like REAL conversation.
 
-Rules:
-- Keep it 30-45 lines
+Characters:
+- Simba (Speaker 1): Confident, silly, works in Marketing, tells exaggerated stories, laughs at his own jokes
+- Meow (Speaker 2): Smart, sarcastic, works in Finance, rolls eyes at Simba, dry wit
+
+RULES FOR NATURAL DIALOGUE:
+- Include fillers: "hmm", "oh", "um", "wait", "right?", "you know?", "like"
+- Include reactions: "haha", "oh my god", "no way", "seriously?", "what?"
+- Include interruptions and overlapping thoughts
+- Include laughter: "haha", "lol", "hehe"
+- Include pauses indicated by "..." or "--"
+- Some lines should be short (1-3 words) like "No.", "Yes.", "What?!", "Exactly!"
+- Some lines should be long rants from Simba
+- Meow should sometimes cut Simba off
+- Include "wow", "ohhh", "mmmm", "ugh", "pfft"
+- Make it sound like two friends chatting, not reading
+- The humor should come from natural banter, not jokes
+- Keep it 35-50 lines
 - Use format: Speaker 1: and Speaker 2:
-- Make it funny with office humor
-- Each line should be 1-2 sentences max
-- Include banter and back-and-forth dialogue
-- End with a funny conclusion
-- NO stage directions, just dialogue
+- NO stage directions in brackets, just raw dialogue
+- Every few lines, have one character react with laughter or surprise
 """},
-                {"role": "user", "content": f"Write a podcast episode about: {topic}"}
+                {"role": "user", "content": f"Write a natural, funny podcast conversation about: {topic}\n\nMake it sound like two friends really talking, not reading a script. Include fillers, reactions, and laughter."}
             ],
-            temperature=0.9,
-            max_tokens=1500,
+            temperature=0.95,
+            max_tokens=1800,
         )
 
         script = response.choices[0].message.content.strip()
@@ -193,53 +202,65 @@ def generate_script_from_template():
     topic = random.choice(OFFICE_TOPICS)
 
     templates = [
-        f"""Speaker 1: Did you hear about the {topic.lower()}?
-Speaker 2: What happened now?
-Speaker 1: It's chaos. Complete chaos. The office will never be the same.
-Speaker 2: You're being dramatic again.
-Speaker 1: I'm being accurate. This is the biggest scandal since the coffee machine incident.
-Speaker 2: The coffee machine incident was you spilling coffee on the keyboard.
-Speaker 1: That was art. Accidental art. The keyboard was a canvas.
-Speaker 2: You destroyed a $200 keyboard.
-Speaker 1: I created a masterpiece. The IT guy didn't appreciate it.
-Speaker 2: Nobody appreciated it. You short-circuited the entire desk.
-Speaker 1: Details. Unimportant details. The point is, this {topic.lower()} is serious.
-Speaker 2: How is it serious?
-Speaker 1: Because I said so. And when Simba says something is serious, it's serious.
-Speaker 2: That's not how seriousness works.
-Speaker 1: It is now. I'm inventing new rules. Simba's rules. Rule one: everything I say is important.
-Speaker 2: Rule two: you're impossible.
-Speaker 1: Rule three: Meow agrees with everything I say.
-Speaker 2: Rule three is wrong.
-Speaker 1: See? You agreed. By disagreeing, you agreed. That's called reverse psychology.
-Speaker 2: That's called nonsense.
-Speaker 1: Same thing. Different spelling. Anyway, let me tell you about the time this happened before.
-Speaker 2: It didn't happen before.
-Speaker 1: It happened in my dreams. Very vivid dreams. Very realistic. I was a hero.
-Speaker 2: You dreamed about being a hero at the office.
-Speaker 1: Every night. I fight the printer. I conquer the coffee machine. I defeat the thermostat.
-Speaker 2: You fight office equipment in your dreams.
-Speaker 1: I fight for justice. Office justice. The equipment must pay for its crimes.
-Speaker 2: You need help.
-Speaker 1: I need a promotion. And a raise. And a better chair. And a window seat.
-Speaker 2: You have a window seat.
-Speaker 1: I want a better window seat. One with a view. A view of the parking lot.
-Speaker 2: The parking lot has no view.
-Speaker 1: It has a view of cars. Cars are beautiful. Especially when they're leaving. Like my motivation.
-Speaker 2: Your motivation left?
-Speaker 1: It's on vacation. It went to Hawaii. With the printer. They're having a great time.
-Speaker 2: Printers don't go to Hawaii.
-Speaker 1: This one does. It's a special printer. A magic printer. A printer with dreams.
-Speaker 2: You're insane.
-Speaker 1: I'm visionary. There's a difference. Now help me plan the next episode.
-Speaker 2: Of the podcast?
-Speaker 1: No, of my life. Yes, of the podcast. What else would I plan?
-Speaker 2: You don't plan anything. You just talk.
-Speaker 1: Talking is planning. Verbal planning. It's the highest form of planning.
-Speaker 2: It's the laziest form of planning.
-Speaker 1: Lazy is efficient. Efficiency is genius. I'm a genius.
-Speaker 2: You're a disaster.
-Speaker 1: A genius disaster. The best kind.""",
+        f"""Speaker 1: Oh my god, did you hear about the {topic.lower()}?
+Speaker 2: Wait, what? What happened?
+Speaker 1: It's... it's crazy. Like, seriously crazy.
+Speaker 2: You're scaring me. What happened?
+Speaker 1: So basically... okay, so you know how the office is, right?
+Speaker 2: Yeah...?
+Speaker 1: Well, apparently... someone... um... someone did something.
+Speaker 2: Someone did something. That's very specific.
+Speaker 1: I'm getting there! Don't rush me!
+Speaker 2: You literally just said "oh my god" and now you're stalling.
+Speaker 1: I'm not stalling! I'm building suspense. It's called storytelling.
+Speaker 2: It's called wasting my time.
+Speaker 1: Okay okay okay, so basically... hmm... how do I put this...
+Speaker 2: With words? Usually how conversations work.
+Speaker 1: Right, so... oh wait, I forgot what I was saying.
+Speaker 2: You forgot.
+Speaker 1: The {topic.lower()} distracted me! It's that serious!
+Speaker 2: You haven't even told me what happened yet.
+Speaker 1: Oh right, yeah, so basically... um... okay this is going to sound crazy.
+Speaker 2: It already sounds crazy.
+Speaker 1: So apparently... someone... I think it might have been Dave... or maybe Karen... or actually I don't know who...
+Speaker 2: You don't know who.
+Speaker 1: I know WHAT happened, just not WHO did it. Details, Meow, details!
+Speaker 2: Okay, what happened?
+Speaker 1: So basically... oh wait, do you hear that?
+Speaker 2: Hear what?
+Speaker 1: Never mind, I think it was the printer. That printer is haunted, I'm telling you.
+Speaker 2: The printer is not haunted.
+Speaker 1: It makes weird noises! At night! When nobody's around!
+Speaker 2: That's called... being a printer.
+Speaker 1: No no no, this is different. It's like... hmm... how do I describe it... it's like... ghost noises.
+Speaker 2: Ghost noises. From the printer.
+Speaker 1: Yes! Exactly! You get it!
+Speaker 2: I don't get it at all. You're insane.
+Speaker 1: I'm not insane! I'm observant! There's a difference!
+Speaker 2: There really isn't.
+Speaker 1: Okay fine, forget the printer. Back to the {topic.lower()}. So basically... oh wow, I just had the best idea.
+Speaker 2: Oh no.
+Speaker 1: What if... and hear me out here... what if we made a podcast episode about this?
+Speaker 2: We're literally recording a podcast episode about this right now.
+Speaker 1: Oh. Right. Hehe. That's... that's funny actually.
+Speaker 2: You're unbelievable.
+Speaker 1: I'm a genius! A misunderstood genius!
+Speaker 2: You're something, that's for sure.
+Speaker 1: Thank you! I'll take that as a compliment.
+Speaker 2: It wasn't one.
+Speaker 1: Too late, I already took it. Can't take it back. That's the rules.
+Speaker 2: What rules?
+Speaker 1: Simba's rules! Rule number one: everything Meow says is a compliment.
+Speaker 2: That's not a real rule.
+Speaker 1: Rule number two: Simba is always right.
+Speaker 2: Also not real.
+Speaker 1: Rule number three: the rules are real because Simba said so.
+Speaker 2: I'm done. I'm leaving.
+Speaker 1: Wait wait wait! Before you go... did I tell you about the time I...
+Speaker 2: No. Goodbye.
+Speaker 1: It involves the printer! And a rubber band! And the manager's shoes!
+Speaker 2: ...I'm listening. But only because I want to know how bad this story is.
+Speaker 1: Oh it's bad. It's really bad. But in a good way. Okay so basically...""",
     ]
 
     script = random.choice(templates)
@@ -308,13 +329,21 @@ def generate_audio(script_path, output_dir):
     segments_dir = os.path.join(output_dir, "segments")
     os.makedirs(segments_dir, exist_ok=True)
 
+    # Generate each segment
     segment_files = []
     for i, (speaker, text) in enumerate(lines):
         voice = VOICES[speaker]
         seg_path = os.path.join(segments_dir, f"seg_{i:04d}.mp3")
 
         async def gen():
-            c = edge_tts.Communicate(text, voice)
+            # Vary speed for natural feel
+            rate = "+0%"
+            if text.startswith("..."):
+                rate = "-10%"
+            elif "!" in text and len(text) < 20:
+                rate = "+5%"
+
+            c = edge_tts.Communicate(text, voice, rate=rate)
             await c.save(seg_path)
 
         try:
@@ -330,10 +359,10 @@ def generate_audio(script_path, output_dir):
 
     print(f"  Generated {len(segment_files)} segments")
 
-    # Concat segments
+    # Build concat with small pauses between different speakers
     concat_file = os.path.join(segments_dir, "concat.txt")
     with open(concat_file, 'w') as f:
-        for seg in segment_files:
+        for i, seg in enumerate(segment_files):
             f.write(f"file '{seg.replace(os.sep, '/')}'\n")
 
     raw_audio = os.path.join(output_dir, "raw_audio.mp3")
@@ -344,7 +373,7 @@ def generate_audio(script_path, output_dir):
     if not os.path.exists(raw_audio):
         return None
 
-    # Normalize audio volume
+    # Normalize
     normalized_audio = os.path.join(output_dir, "episode_audio.mp3")
     cmd = [FFMPEG_EXE, '-y', '-i', raw_audio,
            '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
@@ -353,7 +382,7 @@ def generate_audio(script_path, output_dir):
     subprocess.run(cmd, capture_output=True, timeout=60)
 
     if os.path.exists(normalized_audio):
-        print(f"  Audio ready (normalized)")
+        print(f"  Audio ready")
         return normalized_audio
 
     return raw_audio
@@ -478,30 +507,25 @@ def create_outro_screen(output_dir):
     return outro_path if os.path.exists(outro_path) else None
 
 def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_number):
-    """Create the main podcast video with visual effects."""
+    """Create the main podcast video - fast encoding."""
     video_path = os.path.join(output_dir, "main_video.mp4")
-    duration = get_audio_duration(audio_path)
-    w, h = 1280, 720
-    total_frames = int(duration * 24)
-
-    # Ken Burns slow zoom
-    zoom = f"zoompan=z='min(zoom+0.001,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
 
     cmd = [
         FFMPEG_EXE, '-y',
         '-loop', '1', '-i', bg_image,
         '-i', audio_path,
-        '-c:v', 'libx264', '-c:a', 'aac', '-b:a', '192k',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+        '-c:a', 'aac', '-b:a', '128k',
         '-pix_fmt', 'yuv420p',
-        '-vf', f'scale=8000:-1,{zoom}:d={total_frames}:s={w}x{h}:fps=24',
+        '-vf', 'scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720',
         '-shortest',
         video_path
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
-            print(f"  FFmpeg error: {result.stderr[:300]}")
+            print(f"  FFmpeg error: {result.stderr[:200]}")
     except Exception as e:
         print(f"  FFmpeg failed: {e}")
 
@@ -582,7 +606,6 @@ def add_subtitles(video_path, subtitle_path, output_dir):
 def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_number):
     print("[3/5] Creating video...")
 
-    # Get background image
     backgrounds = get_all_backgrounds()
     if not backgrounds:
         print("  ERROR: No background images")
@@ -592,17 +615,8 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
     print(f"  Background: {os.path.basename(bg)}")
     print(f"  Duration: {get_audio_duration(audio_path):.0f}s")
 
-    # Create main video with effects
+    # Create main video with Ken Burns effect
     video_path = create_main_video(audio_path, bg, output_dir, episode_title, episode_number)
-    if not video_path:
-        return None
-
-    # Add background music
-    video_path = add_background_music(video_path, audio_path, output_dir)
-
-    # Burn subtitles
-    video_path = add_subtitles(video_path, subtitle_path, output_dir)
-
     return video_path
 
 # ============================================================
@@ -619,18 +633,9 @@ def create_thumbnail(output_dir, episode_title, episode_number):
 
     bg = random.choice(backgrounds)
 
-    # Simple thumbnail - just scale the background image
-    cmd = [
-        FFMPEG_EXE, '-y', '-i', bg,
-        '-vf', 'scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720',
-        '-frames:v', '1',
-        thumbnail
-    ]
-
-    try:
-        subprocess.run(cmd, capture_output=True, timeout=30)
-    except:
-        pass
+    # Just copy the background image as thumbnail
+    import shutil
+    shutil.copy2(bg, thumbnail)
 
     if os.path.exists(thumbnail):
         print("  Thumbnail created")
@@ -849,12 +854,12 @@ def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_
     time_per_line = duration / max(len(lines), 1)
     short_results = []
 
-    # Short 1: Opening hook (first 45 seconds)
+    # Short 1: Opening hook (first 25 seconds)
     short1_dir = os.path.join(shorts_dir, "short_1")
     os.makedirs(short1_dir, exist_ok=True)
     short1_audio = os.path.join(short1_dir, "short1_audio.mp3")
 
-    clip_duration = min(45, duration)
+    clip_duration = min(25, duration)
     if get_audio_segment(audio_path, 0, clip_duration, short1_audio):
         # Get first subtitle line
         first_line = lines[0].split(":", 1)[1].strip() if lines else "The Simba Show"
@@ -874,14 +879,14 @@ def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_
             short_results.append({"short": 1, "upload": upload1, "video": short1_video})
             print(f"  Short 1 done")
 
-    # Short 2: Best moment (middle section, 30-60 seconds)
+    # Short 2: Best moment (middle section, 25 seconds)
     short2_dir = os.path.join(shorts_dir, "short_2")
     os.makedirs(short2_dir, exist_ok=True)
     short2_audio = os.path.join(short2_dir, "short2_audio.mp3")
 
     # Start from middle of episode
-    start_time = max(0, (duration / 2) - 15)
-    clip_duration = min(45, duration - start_time)
+    start_time = max(0, (duration / 2) - 10)
+    clip_duration = min(25, duration - start_time)
 
     if get_audio_segment(audio_path, start_time, clip_duration, short2_audio):
         # Get a middle subtitle line
@@ -959,6 +964,11 @@ def generate_episode(specific_number=None):
     if not video_path:
         print("\nFAILED: Video")
         return None
+
+    # Use main_video.mp4 as final
+    final_video = os.path.join(output_dir, "main_video.mp4")
+    if os.path.exists(final_video):
+        video_path = final_video
 
     # Step 4: Thumbnail
     thumbnail_path = create_thumbnail(output_dir, episode_title, ep_num)
