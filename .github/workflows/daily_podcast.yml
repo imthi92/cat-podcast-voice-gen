@@ -44,6 +44,7 @@ jobs:
         run: python generate_episode.py
         env:
           PYTHONUNBUFFERED: 1
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Upload video artifacts
         uses: actions/upload-artifact@v4

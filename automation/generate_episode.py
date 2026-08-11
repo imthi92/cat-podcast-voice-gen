@@ -70,22 +70,211 @@ def mark_processed(script_path, metadata):
     save_processed(data)
 
 # ============================================================
+# AI SCRIPT GENERATION (Unique Content)
+# ============================================================
+
+OFFICE_TOPICS = [
+    "The printer jam conspiracy theory",
+    "Who stole my lunch from the fridge",
+    "The meeting that should have been an email",
+    "The WiFi password changed again",
+    "The air conditioning war between departments",
+    "The mysterious sticky notes on the desk",
+    "The new intern's first day disaster",
+    "The coffee machine is broken again",
+    "The elevator is haunted",
+    "The manager's motivational speech gone wrong",
+    "The office birthday party disaster",
+    "The IT department's secret files",
+    "The parking lot drama",
+    "The vending machine ate my money",
+    "The fire drill during lunch hour",
+    "The mysterious email from the CEO",
+    "The office plant is dying",
+    "The broken chair in the conference room",
+    "The Monday morning mood",
+    "The Friday afternoon rush",
+    "The lunch break debate",
+    "The remote work vs office war",
+    "The team building exercise disaster",
+    "The performance review panic",
+    "The office snack monopoly",
+    "The window seat battle",
+    "The headphone cord conspiracy",
+    "The printer ink cartridge mystery",
+    "The thermostat wars",
+    "The office gossip network",
+    "The calendar invite chaos",
+    "The dress code confusion",
+    "The parking spot theft",
+    "The lunch table politics",
+    "The meeting room booking system",
+    "The office supply shortage",
+    "The mysterious USB drive",
+    "The broken elevator saga",
+    "The coffee stain detective",
+    "The office music debate",
+]
+
+def generate_script_with_ai():
+    """Generate a unique script using OpenAI API."""
+    import openai
+
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        print("  No OpenAI API key, using template")
+        return generate_script_from_template()
+
+    # Pick a random topic
+    topic = random.choice(OFFICE_TOPICS)
+
+    # Check if we've used this topic recently
+    data = load_processed()
+    recent_topics = [ep.get("metadata", {}).get("topic", "") for ep in data.get("episodes", [])[-5:]]
+    attempts = 0
+    while topic in recent_topics and attempts < 10:
+        topic = random.choice(OFFICE_TOPICS)
+        attempts += 1
+
+    print(f"  [AI] Generating script about: {topic}")
+
+    try:
+        client = openai.OpenAI(api_key=api_key)
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": """You write funny cat podcast scripts. 
+Characters:
+- Speaker 1 (Simba): Confident, slightly stupid, works in Marketing, shares office gossip, always getting into trouble
+- Speaker 2 (Meow): Intelligent, sarcastic, works in Finance, keeps Simba in check, dry humor
+
+Rules:
+- Keep it 30-45 lines
+- Use format: Speaker 1: and Speaker 2:
+- Make it funny with office humor
+- Each line should be 1-2 sentences max
+- Include banter and back-and-forth dialogue
+- End with a funny conclusion
+- NO stage directions, just dialogue
+"""},
+                {"role": "user", "content": f"Write a podcast episode about: {topic}"}
+            ],
+            temperature=0.9,
+            max_tokens=1500,
+        )
+
+        script = response.choices[0].message.content.strip()
+        lines = [l for l in script.split("\n") if l.strip() and ":" in l]
+
+        if len(lines) < 10:
+            print("  [AI] Script too short, using template")
+            return generate_script_from_template()
+
+        print(f"  [AI] Generated {len(lines)} lines")
+
+        # Save the script
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        script_path = os.path.join(SCRIPTS_DIR, f"episode_ai_{timestamp}.txt")
+        os.makedirs(SCRIPTS_DIR, exist_ok=True)
+
+        with open(script_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(lines))
+
+        return script_path, topic
+
+    except Exception as e:
+        print(f"  [AI] Error: {e}")
+        return generate_script_from_template()
+
+
+def generate_script_from_template():
+    """Generate script from template when AI is unavailable."""
+    topic = random.choice(OFFICE_TOPICS)
+
+    templates = [
+        f"""Speaker 1: Did you hear about the {topic.lower()}?
+Speaker 2: What happened now?
+Speaker 1: It's chaos. Complete chaos. The office will never be the same.
+Speaker 2: You're being dramatic again.
+Speaker 1: I'm being accurate. This is the biggest scandal since the coffee machine incident.
+Speaker 2: The coffee machine incident was you spilling coffee on the keyboard.
+Speaker 1: That was art. Accidental art. The keyboard was a canvas.
+Speaker 2: You destroyed a $200 keyboard.
+Speaker 1: I created a masterpiece. The IT guy didn't appreciate it.
+Speaker 2: Nobody appreciated it. You short-circuited the entire desk.
+Speaker 1: Details. Unimportant details. The point is, this {topic.lower()} is serious.
+Speaker 2: How is it serious?
+Speaker 1: Because I said so. And when Simba says something is serious, it's serious.
+Speaker 2: That's not how seriousness works.
+Speaker 1: It is now. I'm inventing new rules. Simba's rules. Rule one: everything I say is important.
+Speaker 2: Rule two: you're impossible.
+Speaker 1: Rule three: Meow agrees with everything I say.
+Speaker 2: Rule three is wrong.
+Speaker 1: See? You agreed. By disagreeing, you agreed. That's called reverse psychology.
+Speaker 2: That's called nonsense.
+Speaker 1: Same thing. Different spelling. Anyway, let me tell you about the time this happened before.
+Speaker 2: It didn't happen before.
+Speaker 1: It happened in my dreams. Very vivid dreams. Very realistic. I was a hero.
+Speaker 2: You dreamed about being a hero at the office.
+Speaker 1: Every night. I fight the printer. I conquer the coffee machine. I defeat the thermostat.
+Speaker 2: You fight office equipment in your dreams.
+Speaker 1: I fight for justice. Office justice. The equipment must pay for its crimes.
+Speaker 2: You need help.
+Speaker 1: I need a promotion. And a raise. And a better chair. And a window seat.
+Speaker 2: You have a window seat.
+Speaker 1: I want a better window seat. One with a view. A view of the parking lot.
+Speaker 2: The parking lot has no view.
+Speaker 1: It has a view of cars. Cars are beautiful. Especially when they're leaving. Like my motivation.
+Speaker 2: Your motivation left?
+Speaker 1: It's on vacation. It went to Hawaii. With the printer. They're having a great time.
+Speaker 2: Printers don't go to Hawaii.
+Speaker 1: This one does. It's a special printer. A magic printer. A printer with dreams.
+Speaker 2: You're insane.
+Speaker 1: I'm visionary. There's a difference. Now help me plan the next episode.
+Speaker 2: Of the podcast?
+Speaker 1: No, of my life. Yes, of the podcast. What else would I plan?
+Speaker 2: You don't plan anything. You just talk.
+Speaker 1: Talking is planning. Verbal planning. It's the highest form of planning.
+Speaker 2: It's the laziest form of planning.
+Speaker 1: Lazy is efficient. Efficiency is genius. I'm a genius.
+Speaker 2: You're a disaster.
+Speaker 1: A genius disaster. The best kind.""",
+    ]
+
+    script = random.choice(templates)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    script_path = os.path.join(SCRIPTS_DIR, f"episode_ai_{timestamp}.txt")
+    os.makedirs(SCRIPTS_DIR, exist_ok=True)
+
+    with open(script_path, 'w', encoding='utf-8') as f:
+        f.write(script)
+
+    return script_path, topic
+
+
+# ============================================================
 # SCRIPT SELECTION
 # ============================================================
 
 def get_next_script(specific_number=None):
+    # First try existing scripts
     scripts = sorted(glob.glob(os.path.join(SCRIPTS_DIR, "episode_*.txt")))
     if specific_number:
         for s in scripts:
             if f"episode_{specific_number:02d}" in os.path.basename(s):
-                return s
-        return None
+                return s, None
+        return None, None
+
     for script in scripts:
         if not is_processed(script):
-            return script
-    if scripts:
-        return scripts[0]
-    return None
+            basename = os.path.basename(script)
+            topic = basename.replace(".txt", "").replace("_", " ").title()
+            return script, topic
+
+    # All existing scripts used, generate new one with AI
+    print("  All existing scripts used, generating new content...")
+    return generate_script_with_ai()
 
 # ============================================================
 # AUDIO GENERATION (Edge TTS)
@@ -726,7 +915,7 @@ def generate_episode(specific_number=None):
     print("=" * 60)
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    script_path = get_next_script(specific_number)
+    script_path, topic = get_next_script(specific_number)
     if not script_path:
         print("ERROR: No scripts found!")
         return None
@@ -738,10 +927,19 @@ def generate_episode(specific_number=None):
             ep_num = int(part)
             break
 
-    episode_title = basename.replace(".txt", "").replace("_", " ").title()
+    # Use topic if provided, otherwise extract from filename
+    if topic:
+        episode_title = topic
+    else:
+        episode_title = basename.replace(".txt", "").replace("_", " ").title()
+
+    # Get episode count from processed
+    data = load_processed()
+    ep_count = len(data.get("episodes", [])) + 1
 
     print(f"\nScript: {basename}")
     print(f"Title: {episode_title}")
+    print(f"Episode #{ep_count}")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = os.path.join(OUTPUT_DIR, f"episode_{timestamp}")
@@ -798,7 +996,8 @@ New episodes daily! Subscribe and hit the bell!
     metadata = {
         "script": script_path,
         "title": episode_title,
-        "episode_number": ep_num,
+        "topic": topic,
+        "episode_number": ep_count,
         "audio": audio_path,
         "video": video_path,
         "thumbnail": thumbnail_path,
