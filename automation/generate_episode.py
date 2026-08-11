@@ -507,8 +507,16 @@ def create_outro_screen(output_dir):
     return outro_path if os.path.exists(outro_path) else None
 
 def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_number):
-    """Create the main podcast video - fast encoding."""
+    """Create the main podcast video with speaker labels."""
     video_path = os.path.join(output_dir, "main_video.mp4")
+
+    # Add speaker name labels at bottom
+    vf = (
+        "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
+        "drawbox=x=0:y=620:w=1280:h=100:color=black@0.6:t=fill,"
+        "drawbox=x=20:y=640:w=100:h=30:color=#ff6b35:t=fill,"
+        "drawbox=x=1160:y=640:w=100:h=30:color=#4a9eff:t=fill"
+    )
 
     cmd = [
         FFMPEG_EXE, '-y',
@@ -517,7 +525,7 @@ def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_n
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
         '-c:a', 'aac', '-b:a', '128k',
         '-pix_fmt', 'yuv420p',
-        '-vf', 'scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720',
+        '-vf', vf,
         '-shortest',
         video_path
     ]
@@ -604,7 +612,7 @@ def add_subtitles(video_path, subtitle_path, output_dir):
     return video_path
 
 def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_number):
-    print("[3/5] Creating video...")
+    print("[3/5] Creating video with all features...")
 
     backgrounds = get_all_backgrounds()
     if not backgrounds:
@@ -612,12 +620,48 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
         return None
 
     bg = random.choice(backgrounds)
+    duration = get_audio_duration(audio_path)
     print(f"  Background: {os.path.basename(bg)}")
-    print(f"  Duration: {get_audio_duration(audio_path):.0f}s")
+    print(f"  Duration: {duration:.0f}s")
 
-    # Create main video with Ken Burns effect
-    video_path = create_main_video(audio_path, bg, output_dir, episode_title, episode_number)
-    return video_path
+    # Step 1: Create main video with speaker labels
+    main_video = create_main_video(audio_path, bg, output_dir, episode_title, episode_number)
+    if not main_video:
+        return None
+
+    # Step 2: Add background music
+    video_with_music = add_background_music(main_video, audio_path, output_dir)
+
+    # Step 3: Create intro screen
+    intro = create_intro_screen(output_dir, episode_title, episode_number)
+
+    # Step 4: Create outro screen
+    outro = create_outro_screen(output_dir)
+
+    # Step 5: Concatenate intro + main + outro
+    final_path = os.path.join(output_dir, "final_video.mp4")
+    concat_list = os.path.join(output_dir, "concat_list.txt")
+
+    with open(concat_list, 'w') as f:
+        if intro:
+            f.write(f"file '{intro.replace(os.sep, '/')}'\n")
+        f.write(f"file '{video_with_music.replace(os.sep, '/')}'\n")
+        if outro:
+            f.write(f"file '{outro.replace(os.sep, '/')}'\n")
+
+    cmd = [FFMPEG_EXE, '-y', '-f', 'concat', '-safe', '0',
+           '-i', concat_list, '-c', 'copy', final_path]
+
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=60)
+    except:
+        pass
+
+    if os.path.exists(final_path):
+        print(f"  Video complete with intro/outro + music")
+        return final_path
+
+    return video_with_music
 
 # ============================================================
 # THUMBNAIL (Professional)
@@ -646,7 +690,7 @@ def create_thumbnail(output_dir, episode_title, episode_number):
 # YOUTUBE UPLOAD
 # ============================================================
 
-def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None):
+def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None, episode_number=1):
     print("\n[5/5] YouTube upload...")
     try:
         from google.oauth2.credentials import Credentials
@@ -675,10 +719,30 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None)
 
     youtube = build('youtube', 'v3', credentials=creds)
 
+    # Better SEO - description with timestamps and links
+    full_description = f"""The Simba Show - Episode {episode_number}: {title}
+
+{description}
+
+---
+About The Simba Show:
+Two cats, Simba and Meow, discuss office gossip in a hilarious podcast format.
+New episodes daily!
+
+Characters:
+- Simba: Confident, works in Marketing, tells exaggerated stories
+- Meow: Smart, sarcastic, works in Finance, keeps Simba in check
+
+---
+Subscribe: https://youtube.com/@thesimbashowss
+---
+
+#CatPodcast #SimbaAndMeow #FunnyCats #OfficeHumor #TheSimbaShow #CatComedy #Podcast #Shorts"""
+
     body = {
         "snippet": {
-            "title": title[:100],
-            "description": description[:5000],
+            "title": f"The Simba Show Ep.{episode_number} - {title}" [:100],
+            "description": full_description[:5000],
             "tags": tags[:500],
             "categoryId": "24",
             "defaultLanguage": "en",
@@ -705,6 +769,7 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None)
         url = f"https://youtube.com/watch?v={video_id}"
         print(f"  Uploaded: {url}")
 
+        # Upload thumbnail
         if thumbnail_path and os.path.exists(thumbnail_path):
             try:
                 youtube.thumbnails().set(
@@ -715,9 +780,61 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None)
             except:
                 pass
 
+        # Add to playlist
+        playlist_id = get_or_create_playlist(youtube, "The Simba Show - Full Episodes")
+        if playlist_id:
+            try:
+                youtube.playlistItems().insert(
+                    part="snippet",
+                    body={
+                        "snippet": {
+                            "playlistId": playlist_id,
+                            "resourceId": {
+                                "kind": "youtube#video",
+                                "videoId": video_id,
+                            },
+                        }
+                    },
+                ).execute()
+                print("  Added to playlist")
+            except:
+                pass
+
         return {"video_id": video_id, "url": url}
     except Exception as e:
         print(f"  Failed: {e}")
+        return None
+
+
+def get_or_create_playlist(youtube, playlist_name):
+    """Get existing playlist or create new one."""
+    try:
+        # Search for existing playlist
+        request = youtube.playlists().list(
+            part="snippet",
+            mine=True,
+            maxResults=50
+        )
+        response = request.execute()
+
+        for item in response.get("items", []):
+            if item["snippet"]["title"] == playlist_name:
+                return item["id"]
+
+        # Create new playlist
+        request = youtube.playlists().insert(
+            part="snippet,status",
+            body={
+                "snippet": {"title": playlist_name},
+                "status": {"privacyStatus": "public"}
+            }
+        )
+        response = request.execute()
+        print(f"  Created playlist: {playlist_name}")
+        return response["id"]
+
+    except Exception as e:
+        print(f"  Playlist error: {e}")
         return None
 
 # ============================================================
@@ -960,48 +1077,40 @@ def generate_episode(specific_number=None):
     subtitle_path = generate_subtitles(script_path, audio_path, output_dir)
 
     # Step 3: Video
-    video_path = create_video(audio_path, subtitle_path, output_dir, episode_title, ep_num)
+    video_path = create_video(audio_path, subtitle_path, output_dir, episode_title, ep_count)
     if not video_path:
         print("\nFAILED: Video")
         return None
 
-    # Use main_video.mp4 as final
-    final_video = os.path.join(output_dir, "main_video.mp4")
-    if os.path.exists(final_video):
-        video_path = final_video
-
     # Step 4: Thumbnail
-    thumbnail_path = create_thumbnail(output_dir, episode_title, ep_num)
+    thumbnail_path = create_thumbnail(output_dir, episode_title, ep_count)
 
     # Step 5: Generate 2 Shorts
     backgrounds = get_all_backgrounds()
     bg_image = random.choice(backgrounds) if backgrounds else None
     short_results = []
     if bg_image:
-        short_results = generate_shorts(audio_path, script_path, output_dir, episode_title, ep_num, bg_image)
+        short_results = generate_shorts(audio_path, script_path, output_dir, episode_title, ep_count, bg_image)
 
     # Step 6: Upload full episode
-    description = f"""The Simba Show - Episode {ep_num}: {episode_title}
-
-Simba and Meow are back with another hilarious episode! This time they talk about {episode_title.lower()}.
-
-Characters:
-- Simba: Confident, works in Marketing, shares office gossip
-- Meow: Intelligent, sarcastic, works in Finance
-
-New episodes daily! Subscribe and hit the bell!
-
-#CatPodcast #SimbaAndMeow #FunnyCats #OfficeHumor #TheSimbaShow #CatComedy"""
+    description = f"""Simba and Meow discuss office gossip in this hilarious cat podcast!"""
 
     tags = [
         "cat podcast", "funny cats", "office cats", "cat comedy",
         "simba and meow", "cat dialogue", "funny cat videos",
         "cat humor", "office humor", "the simba show", "office gossip",
-        "cat talk", "podcast", "daily podcast", "cat show",
-        "funny animals", "cat entertainment", "workplace comedy"
+        "cat talk", "podcast", "daily podcast", "funny animals",
+        "cat entertainment", "workplace comedy", "cat show"
     ]
 
-    upload_result = upload_to_youtube(video_path, f"The Simba Show - {episode_title}", description, tags, thumbnail_path)
+    upload_result = upload_to_youtube(
+        video_path, 
+        episode_title, 
+        description, 
+        tags, 
+        thumbnail_path,
+        episode_number=ep_count
+    )
 
     metadata = {
         "script": script_path,
