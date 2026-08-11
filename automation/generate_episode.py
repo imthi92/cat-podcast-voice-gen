@@ -94,6 +94,44 @@ def _find_ffmpeg():
 FFMPEG_EXE, FFPROBE_EXE = _find_ffmpeg()
 TOKEN_FILE = os.path.join(BASE_DIR, "youtube_token.pickle")
 
+def _find_fontfile():
+    """Locate a usable font file for drawtext (Windows + Linux)."""
+    candidates = [
+        r"C:\Windows\Fonts\arial.ttf",
+        r"C:\Windows\Fonts\segoeui.ttf",
+        r"C:\Windows\Fonts\calibri.ttf",
+        r"C:\Windows\Fonts\arialbd.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
+FONTFILE = _find_fontfile()
+
+def _ensure_font_in(output_dir):
+    """Copy the font into output_dir and return relative filename.
+    ffmpeg can't handle Windows drive-letter colons in fontfile paths,
+    so we copy the font next to the output and reference it relatively."""
+    if not FONTFILE:
+        return None
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        dest = os.path.join(output_dir, "arial.ttf")
+        if not os.path.exists(dest):
+            shutil.copy2(FONTFILE, dest)
+        return "arial.ttf"
+    except Exception:
+        return None
+
+def _font_arg():
+    """Return the fontfile arg for drawtext. Must be used with cwd=output_dir."""
+    return ":fontfile=arial.ttf" if FONTFILE else ""
+
 # ============================================================
 # RETRY HELPER
 # ============================================================
@@ -853,7 +891,7 @@ def generate_audio(script_path, output_dir):
     concat_file = os.path.join(segments_dir, "concat.txt")
     with open(concat_file, 'w') as f:
         for seg in segment_files:
-            f.write(f"file '{seg.replace(os.sep, '/')}'\n")
+            f.write(f"file '{os.path.abspath(seg).replace(os.sep, '/')}'\n")
 
     raw_audio = os.path.join(output_dir, "raw_audio.mp3")
     cmd = [FFMPEG_EXE, '-y', '-f', 'concat', '-safe', '0',
@@ -984,72 +1022,78 @@ def _get_background_fallback(output_dir):
     return None
 
 def create_intro_screen(output_dir, episode_title, episode_number):
-    intro_path = os.path.join(output_dir, "intro.mp4")
+    intro_path = os.path.abspath(os.path.join(output_dir, "intro.mp4"))
+    _ensure_font_in(output_dir)
+    fa = _font_arg()
     cmd = [
         FFMPEG_EXE, '-y',
         '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=4',
         '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.1',
         '-vf', (
-            "drawtext=text='The Simba Show':fontcolor=white:fontsize=60:"
+            f"drawtext=text='The Simba Show':fontcolor=white:fontsize=60{fa}:"
             "x=(w-text_w)/2:y=150,"
-            "drawtext=text='Episode %d':fontcolor=#ffaa00:fontsize=40:"
-            "x=(w-text_w)/2:y=250," % episode_number,
-            "drawtext=text='Simba':fontcolor=#ff6b35:fontsize=30:x=200:y=400,"
-            "drawtext=text='Meow':fontcolor=#4a9eff:fontsize=30:x=400:y=400,"
-            "drawtext=text='Imti':fontcolor=#00ff88:fontsize=30:x=600:y=400,"
-            "drawtext=text='Zulfi':fontcolor=#ff44ff:fontsize=30:x=800:y=400,"
-            "drawtext=text='Office Gossip Podcast':fontcolor=#aaaaaa:fontsize=24:"
+            f"drawtext=text='Episode {episode_number}':fontcolor=#ffaa00:fontsize=40{fa}:"
+            "x=(w-text_w)/2:y=250,"
+            f"drawtext=text='Simba':fontcolor=#ff6b35:fontsize=30{fa}:x=200:y=400,"
+            f"drawtext=text='Meow':fontcolor=#4a9eff:fontsize=30{fa}:x=400:y=400,"
+            f"drawtext=text='Imti':fontcolor=#00ff88:fontsize=30{fa}:x=600:y=400,"
+            f"drawtext=text='Zulfi':fontcolor=#ff44ff:fontsize=30{fa}:x=800:y=400,"
+            f"drawtext=text='Office Gossip Podcast':fontcolor=#aaaaaa:fontsize=24{fa}:"
             "x=(w-text_w)/2:y=500"
         ),
         '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '4', intro_path
     ]
     try:
-        subprocess.run(cmd, capture_output=True, timeout=30)
+        subprocess.run(cmd, capture_output=True, timeout=30, cwd=output_dir)
     except:
         pass
     return intro_path if os.path.exists(intro_path) else None
 
 def create_outro_screen(output_dir, episode_number=None):
-    outro_path = os.path.join(output_dir, "outro.mp4")
+    outro_path = os.path.abspath(os.path.join(output_dir, "outro.mp4"))
     next_ep = (episode_number or 1) + 1
+    _ensure_font_in(output_dir)
+    fa = _font_arg()
     cmd = [
         FFMPEG_EXE, '-y',
         '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=5',
         '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.1',
         '-vf', (
-            "drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=60:"
+            f"drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=60{fa}:"
             "x=(w-text_w)/2:y=100,"
             "drawbox=x=440:y=300:w=400:h=80:color=#ff0000:t=fill,"
-            "drawtext=text='SUBSCRIBE':fontcolor=white:fontsize=40:"
+            f"drawtext=text='SUBSCRIBE':fontcolor=white:fontsize=40{fa}:"
             "x=(w-text_w)/2:y=315,"
-            "drawtext=text='Next Episode Coming Tomorrow!':fontcolor=white:fontsize=30:"
+            f"drawtext=text='Next Episode Coming Tomorrow!':fontcolor=white:fontsize=30{fa}:"
             "x=(w-text_w)/2:y=450,"
-            "drawtext=text='Simba | Meow | Imti | Zulfi':fontcolor=#aaaaaa:fontsize=24:"
+            f"drawtext=text='Simba | Meow | Imti | Zulfi':fontcolor=#aaaaaa:fontsize=24{fa}:"
             "x=(w-text_w)/2:y=520,"
-            "drawtext=text='@thesimbashowss':fontcolor=#888888:fontsize=20:"
+            f"drawtext=text='@thesimbashowss':fontcolor=#888888:fontsize=20{fa}:"
             "x=(w-text_w)/2:y=600"
         ),
         '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '5', outro_path
     ]
     try:
-        subprocess.run(cmd, capture_output=True, timeout=30)
+        subprocess.run(cmd, capture_output=True, timeout=30, cwd=output_dir)
     except:
         pass
     return outro_path if os.path.exists(outro_path) else None
 
 def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_number):
-    video_path = os.path.join(output_dir, "main_video.mp4")
+    video_path = os.path.abspath(os.path.join(output_dir, "main_video.mp4"))
+    _ensure_font_in(output_dir)
+    fa = _font_arg()
     vf = (
         "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
         "drawbox=x=0:y=620:w=1280:h=100:color=black@0.6:t=fill,"
         "drawbox=x=20:y=640:w=80:h=25:color=#ff6b35:t=fill,"
-        "drawtext=text='Simba':fontcolor=white:fontsize=14:x=25:y=645,"
+        f"drawtext=text='Simba':fontcolor=white:fontsize=14{fa}:x=25:y=645,"
         "drawbox=x=110:y=640:w=70:h=25:color=#4a9eff:t=fill,"
-        "drawtext=text='Meow':fontcolor=white:fontsize=14:x=115:y=645,"
+        f"drawtext=text='Meow':fontcolor=white:fontsize=14{fa}:x=115:y=645,"
         "drawbox=x=200:y=640:w=60:h=25:color=#00ff88:t=fill,"
-        "drawtext=text='Imti':fontcolor=white:fontsize=14:x=205:y=645,"
+        f"drawtext=text='Imti':fontcolor=white:fontsize=14{fa}:x=205:y=645,"
         "drawbox=x=280:y=640:w=60:h=25:color=#ff44ff:t=fill,"
-        "drawtext=text='Zulfi':fontcolor=white:fontsize=14:x=285:y=645"
+        f"drawtext=text='Zulfi':fontcolor=white:fontsize=14{fa}:x=285:y=645"
     )
     cmd = [
         FFMPEG_EXE, '-y', '-loop', '1', '-i', bg_image, '-i', audio_path,
@@ -1058,11 +1102,29 @@ def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_n
         '-vf', vf, '-shortest', video_path
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, cwd=output_dir)
         if result.returncode != 0:
-            print(f"  FFmpeg error: {result.stderr[:200]}")
+            print(f"  FFmpeg error: {result.stderr[:300]}")
     except Exception as e:
         print(f"  FFmpeg failed: {e}")
+
+    # Fallback: retry without text overlays (fonts may be missing on some systems)
+    if not os.path.exists(video_path):
+        print("  Retrying without text overlays...")
+        vf_no_text = "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720"
+        cmd2 = [
+            FFMPEG_EXE, '-y', '-loop', '1', '-i', bg_image, '-i', audio_path,
+            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+            '-c:a', 'aac', '-b:a', '128k', '-pix_fmt', 'yuv420p',
+            '-vf', vf_no_text, '-shortest', video_path
+        ]
+        try:
+            result2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=300, cwd=output_dir)
+            if result2.returncode != 0:
+                print(f"  FFmpeg fallback error: {result2.stderr[:200]}")
+        except Exception as e:
+            print(f"  FFmpeg fallback failed: {e}")
+
     return video_path if os.path.exists(video_path) else None
 
 def add_background_music(video_path, audio_path, output_dir):
@@ -1130,10 +1192,10 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
     concat_list = os.path.join(output_dir, "concat_list.txt")
     with open(concat_list, 'w') as f:
         if intro:
-            f.write(f"file '{intro.replace(os.sep, '/')}'\n")
-        f.write(f"file '{video_with_music.replace(os.sep, '/')}'\n")
+            f.write(f"file '{os.path.abspath(intro).replace(os.sep, '/')}'\n")
+        f.write(f"file '{os.path.abspath(video_with_music).replace(os.sep, '/')}'\n")
         if outro:
-            f.write(f"file '{outro.replace(os.sep, '/')}'\n")
+            f.write(f"file '{os.path.abspath(outro).replace(os.sep, '/')}'\n")
 
     cmd = [FFMPEG_EXE, '-y', '-f', 'concat', '-safe', '0',
            '-i', concat_list, '-c', 'copy', final_path]
@@ -1150,7 +1212,9 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
 
 def create_thumbnail(output_dir, episode_title, episode_number):
     print("[4/5] Creating thumbnail...")
-    thumbnail = os.path.join(output_dir, "thumbnail.png")
+    thumbnail = os.path.abspath(os.path.join(output_dir, "thumbnail.png"))
+    _ensure_font_in(output_dir)
+    fa = _font_arg()
 
     backgrounds = get_all_backgrounds()
     if not backgrounds:
@@ -1160,14 +1224,14 @@ def create_thumbnail(output_dir, episode_title, episode_number):
             '-i', 'color=c=#1a1a2e:s=720x540:d=1',
             '-vf', (
                 "drawbox=x=20:y=20:w=120:h=50:color=#ff0000:t=fill,"
-                "drawtext=text='EP %d':fontcolor=white:fontsize=28:x=30:y=28,"
-                "drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=40:"
-                "x=(w-text_w)/2:y=200" % episode_number
+                f"drawtext=text='EP {episode_number}':fontcolor=white:fontsize=28{fa}:x=30:y=28,"
+                f"drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=40{fa}:"
+                "x=(w-text_w)/2:y=200"
             ),
             '-frames:v', '1', thumbnail
         ]
         try:
-            subprocess.run(cmd, capture_output=True, timeout=15)
+            subprocess.run(cmd, capture_output=True, timeout=15, cwd=output_dir)
         except:
             pass
         return thumbnail if os.path.exists(thumbnail) else None
@@ -1177,14 +1241,14 @@ def create_thumbnail(output_dir, episode_title, episode_number):
         FFMPEG_EXE, '-y', '-i', bg,
         '-vf', (
             "drawbox=x=20:y=20:w=120:h=50:color=#ff0000:t=fill,"
-            "drawtext=text='EP %d':fontcolor=white:fontsize=28:x=30:y=28,"
+            f"drawtext=text='EP {episode_number}':fontcolor=white:fontsize=28{fa}:x=30:y=28,"
             "drawbox=x=0:y=520:w=720:h=80:color=black@0.7:t=fill,"
-            "drawtext=text='%s':fontcolor=white:fontsize=24:x=10:y=545" % (episode_number, episode_title[:40])
+            f"drawtext=text='{episode_title[:40]}':fontcolor=white:fontsize=24{fa}:x=10:y=545"
         ),
         '-c:v', 'png', thumbnail
     ]
     try:
-        subprocess.run(cmd, capture_output=True, timeout=30)
+        subprocess.run(cmd, capture_output=True, timeout=30, cwd=output_dir)
     except:
         shutil.copy2(bg, thumbnail)
 
