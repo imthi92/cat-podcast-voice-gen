@@ -368,27 +368,47 @@ def _generate_hf():
     print(f"  [HF] Generating script about: {topic}")
     prompt = _get_script_prompt(topic)
 
-    response = requests.post(
-        "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
-        headers={"Authorization": f"Bearer {api_key}"},
-        json={"inputs": prompt, "parameters": {"max_new_tokens": 1500, "temperature": 0.95, "do_sample": True}},
-        timeout=120
-    )
-    if response.status_code != 200:
-        raise Exception(f"HF API error {response.status_code}: {response.text[:200]}")
+    # Try several free models in order; keep the first that returns a usable script
+    models = [
+        "mistralai/Mistral-7B-Instruct-v0.3",
+        "HuggingFaceH4/zephyr-7b-beta",
+        "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        "google/gemma-2-2b-it",
+        "microsoft/phi-3-mini-4k-instruct",
+    ]
+    last_err = None
+    for model in models:
+        try:
+            response = requests.post(
+                f"https://api-inference.huggingface.co/models/{model}",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={"inputs": prompt, "parameters": {"max_new_tokens": 1500, "temperature": 0.95, "do_sample": True}},
+                timeout=120
+            )
+            if response.status_code != 200:
+                last_err = f"HF API error {response.status_code}: {response.text[:200]}"
+                print(f"  [HF] {model}: {last_err}")
+                continue
 
-    result = response.json()
-    if isinstance(result, list) and len(result) > 0:
-        script = result[0].get("generated_text", "")
-    else:
-        script = str(result)
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                script = result[0].get("generated_text", "")
+            else:
+                script = str(result)
 
-    lines = _parse_ai_script(script)
-    if len(lines) < 10:
-        raise Exception(f"Script too short ({len(lines)} lines)")
+            lines = _parse_ai_script(script)
+            if len(lines) < 10:
+                last_err = f"Script too short ({len(lines)} lines)"
+                print(f"  [HF] {model}: {last_err}")
+                continue
 
-    print(f"  [HF] Generated {len(lines)} lines")
-    return _save_script(lines, topic)
+            print(f"  [HF] {model}: {len(lines)} lines")
+            return _save_script(lines, topic)
+        except Exception as e:
+            last_err = str(e)
+            print(f"  [HF] {model}: {last_err}")
+
+    raise Exception(last_err or "All HF models failed")
 
 # --- RANK 2: Google Gemini API (free tier) ---
 def _generate_gemini():
@@ -585,7 +605,7 @@ def get_sound_effect(text):
     t = text.lower()
     
     # Laughter variations
-    if any(w in t for w in ["hahaha", "hahaha", "lol", "lmao", "rofl"]):
+    if any(w in t for w in ["hahaha", "haha", "lol", "lmao", "rofl"]):
         return "laugh"
     if any(w in t for w in ["hehe", "hee hee", "giggle"]):
         return "giggle"
@@ -991,20 +1011,37 @@ def _get_background_fallback(output_dir):
     if existing:
         return random.choice(existing)
 
-    # Rank 2: Download from Unsplash
+    # Rank 2: Download from a free image source
     try:
         import requests
         os.makedirs(IMAGES_DIR, exist_ok=True)
-        url = "https://source.unsplash.com/1280x720/?cat,podcast,studio"
+        # Pollinations.ai free image generation (no API key)
+        url = f"https://image.pollinations.ai/prompt/cartoon%20cat%20podcast%20studio%20with%20microphones?width=1280&height=720&nologo=true"
         resp = requests.get(url, timeout=30, allow_redirects=True)
         if resp.status_code == 200:
-            img_path = os.path.join(IMAGES_DIR, f"unsplash_{hashlib.md5(resp.content).hexdigest()[:8]}.jpg")
+            img_path = os.path.join(IMAGES_DIR, f"gen_{hashlib.md5(resp.content).hexdigest()[:8]}.jpg")
             with open(img_path, 'wb') as f:
                 f.write(resp.content)
-            print(f"  Downloaded background from Unsplash")
-            return img_path
+            if os.path.getsize(img_path) > 1000:
+                print(f"  Generated background via Pollinations")
+                return img_path
     except Exception as e:
-        print(f"  [SKIP] Unsplash failed: {e}")
+        print(f"  [SKIP] Pollinations failed: {e}")
+
+    # Rank 3: Download from Picsum (free, no API key)
+    try:
+        import requests
+        url = "https://picsum.photos/1280/720"
+        resp = requests.get(url, timeout=30, allow_redirects=True)
+        if resp.status_code == 200:
+            img_path = os.path.join(IMAGES_DIR, f"picsum_{hashlib.md5(resp.content).hexdigest()[:8]}.jpg")
+            with open(img_path, 'wb') as f:
+                f.write(resp.content)
+            if os.path.getsize(img_path) > 1000:
+                print(f"  Downloaded background from Picsum")
+                return img_path
+    except Exception as e:
+        print(f"  [SKIP] Picsum failed: {e}")
 
     # Rank 3: Generate solid color background via FFmpeg
     try:
@@ -1239,18 +1276,26 @@ def create_thumbnail(output_dir, episode_title, episode_number):
         return thumbnail if os.path.exists(thumbnail) else None
 
     bg = random.choice(backgrounds)
+    title_file = os.path.join(output_dir, "thumb_title.txt")
+    try:
+        with open(title_file, 'w', encoding='utf-8') as f:
+            f.write(episode_title[:40])
+    except:
+        pass
     cmd = [
         FFMPEG_EXE, '-y', '-i', bg,
         '-vf', (
             "drawbox=x=20:y=20:w=120:h=50:color=#ff0000:t=fill,"
             f"drawtext=text='EP {episode_number}':fontcolor=white:fontsize=28{fa}:x=30:y=28,"
             "drawbox=x=0:y=520:w=720:h=80:color=black@0.7:t=fill,"
-            f"drawtext=text='{episode_title[:40]}':fontcolor=white:fontsize=24{fa}:x=10:y=545"
+            f"drawtext=textfile=thumb_title.txt:fontcolor=white:fontsize=24{fa}:x=10:y=545"
         ),
         '-c:v', 'png', thumbnail
     ]
     try:
-        subprocess.run(cmd, capture_output=True, timeout=30, cwd=output_dir)
+        result = subprocess.run(cmd, capture_output=True, timeout=30, cwd=output_dir)
+        if result.returncode != 0 and os.path.exists(bg):
+            shutil.copy2(bg, thumbnail)
     except:
         shutil.copy2(bg, thumbnail)
 
@@ -1398,7 +1443,7 @@ def get_or_create_playlist(youtube, playlist_name):
 
 def get_audio_segment(audio_path, start_sec, duration_sec, output_path):
     cmd = [FFMPEG_EXE, '-y', '-i', audio_path,
-           '-ss', str(start_sec), '-t', str(duration_sec), '-c', 'copy', output_path]
+           '-ss', str(start_sec), '-t', str(duration_sec), '-c:a', 'libmp3lame', '-b:a', '192k', output_path]
     try:
         subprocess.run(cmd, capture_output=True, timeout=30)
     except:
