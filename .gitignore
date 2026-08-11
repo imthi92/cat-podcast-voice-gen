@@ -7,10 +7,10 @@ automation/youtube_token.pickle
 output/
 automation/output/
 
-# Audio files (large)
+# Audio files (large) - keep assets
 *.wav
-*.mp3
 *.mp4
+automation/output/
 
 # Python
 __pycache__/
