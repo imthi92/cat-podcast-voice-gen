@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Cat Podcast - Episode Generator v2 (Professional Quality)
-Edge TTS + FFmpeg with visual effects + YouTube upload
+Cat Podcast - Episode Generator v4 (All Free, No Local Dependencies)
+Edge TTS + FFmpeg with sound effects, async audio, free LLM scripts
 """
 
 import os
@@ -12,6 +12,8 @@ import asyncio
 import glob
 import pickle
 import random
+import shutil
+import hashlib
 from pathlib import Path
 from datetime import datetime
 
@@ -23,19 +25,49 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS_DIR = os.path.join(os.path.dirname(BASE_DIR), "scripts")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 PROCESSED_FILE = os.path.join(BASE_DIR, "processed_episodes.json")
+COUNTER_FILE = os.path.join(BASE_DIR, "episode_counter.json")
 IMAGES_DIR = os.path.join(BASE_DIR, "downloaded_images")
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
 VOICES = {
-    "Speaker 1": "en-US-GuyNeural",
-    "Speaker 2": "en-US-JennyNeural",
+    "Speaker 1": "en-US-GuyNeural",      # Simba - confident, Marketing
+    "Speaker 2": "en-US-JennyNeural",    # Meow - sarcastic, Finance
+    "Imti": "en-US-ChristopherNeural",   # Imti - IT guy, technical
+    "Zulfi": "en-US-ChristopherNeural",  # Zulfi - HR manager, formal
 }
 
-# FFmpeg
-FFMPEG_PATH = r"C:\Users\Imtiyaz\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0-full_build\bin"
-FFMPEG_EXE = os.path.join(FFMPEG_PATH, "ffmpeg.exe")
-FFPROBE_EXE = os.path.join(FFMPEG_PATH, "ffprobe.exe")
-os.environ["PATH"] = FFMPEG_PATH + ";" + os.environ.get("PATH", "")
+# Character descriptions for scripts
+CHARACTERS = {
+    "Speaker 1": "Simba (Marketing, confident, silly, exaggerates stories)",
+    "Speaker 2": "Meow (Finance, smart, sarcastic, dry wit)",
+    "Imti": "Imti (IT guy, technical, always fixing things, stressed)",
+    "Zulfi": "Zulfi (HR manager, formal, corporate speak, manages people)",
+}
+
+# FFmpeg - auto-detect from PATH or common locations
+def _find_ffmpeg():
+    """Find ffmpeg binary, trying PATH first then common install locations."""
+    ffmpeg = shutil.which("ffmpeg")
+    ffprobe = shutil.which("ffprobe")
+    if ffmpeg and ffprobe:
+        return ffmpeg, ffprobe
+    
+    common_paths = [
+        r"C:\ffmpeg\bin",
+        r"C:\Program Files\ffmpeg\bin",
+        os.path.expanduser(r"~\scoop\shims"),
+        os.path.expanduser(r"~\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0-full_build\bin"),
+    ]
+    for p in common_paths:
+        f = os.path.join(p, "ffmpeg.exe")
+        fp = os.path.join(p, "ffprobe.exe")
+        if os.path.exists(f) and os.path.exists(fp):
+            os.environ["PATH"] = p + ";" + os.environ.get("PATH", "")
+            return f, fp
+    
+    return "ffmpeg", "ffprobe"
+
+FFMPEG_EXE, FFPROBE_EXE = _find_ffmpeg()
 
 TOKEN_FILE = os.path.join(BASE_DIR, "youtube_token.pickle")
 
@@ -68,6 +100,20 @@ def mark_processed(script_path, metadata):
         "metadata": metadata
     })
     save_processed(data)
+
+def get_next_episode_number():
+    """Persistent episode counter that survives re-runs."""
+    if os.path.exists(COUNTER_FILE):
+        with open(COUNTER_FILE, 'r') as f:
+            counter = json.load(f)
+        counter["next"] = counter.get("next", 1) + 1
+    else:
+        counter = {"next": 2}
+    
+    with open(COUNTER_FILE, 'w') as f:
+        json.dump(counter, f, indent=2)
+    
+    return counter["next"] - 1
 
 # ============================================================
 # AI SCRIPT GENERATION (Unique Content)
@@ -114,21 +160,36 @@ OFFICE_TOPICS = [
     "The broken elevator saga",
     "The coffee stain detective",
     "The office music debate",
+    # New topics featuring Imti and Zulfi
+    "Imti's computer crashes during demo",
+    "Zulfi's mandatory HR training session",
+    "The internet is down - blame Imti",
+    "Zulfi sends another all-staff email",
+    "Imti's server room is overheating",
+    "Zulfi's performance review nightmare",
+    "Imti forgot to back up the data",
+    "Zulfi's new office policy nobody follows",
+    "Imti's cable management disaster",
+    "Zulfi's team building exercise fails",
+    "Imti's lunch stolen from IT fridge",
+    "Zulfi's dress code enforcement chaos",
+    "Imti's backup tapes are missing",
+    "Zulfi's mandatory fun Friday",
+    "Imti's emergency patch at 3 AM",
+    "Zulfi's employee satisfaction survey",
 ]
 
 def generate_script_with_ai():
-    """Generate a unique script using OpenAI API."""
-    import openai
+    """Generate a unique script using free Hugging Face Inference API."""
+    import requests
 
-    api_key = os.environ.get("OPENAI_API_KEY", "")
+    api_key = os.environ.get("HF_API_KEY", os.environ.get("HUGGINGFACE_API_KEY", ""))
     if not api_key:
-        print("  No OpenAI API key, using template")
+        print("  No Hugging Face API key, using template")
         return generate_script_from_template()
 
-    # Pick a random topic
     topic = random.choice(OFFICE_TOPICS)
 
-    # Check if we've used this topic recently
     data = load_processed()
     recent_topics = [ep.get("metadata", {}).get("topic", "") for ep in data.get("episodes", [])[-5:]]
     attempts = 0
@@ -139,42 +200,47 @@ def generate_script_with_ai():
     print(f"  [AI] Generating script about: {topic}")
 
     try:
-        client = openai.OpenAI(api_key=api_key)
-
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": """You write natural, funny cat podcast scripts that sound like REAL conversation.
+        prompt = f"""Write a natural, funny cat podcast conversation about: {topic}
 
 Characters:
-- Simba (Speaker 1): Confident, silly, works in Marketing, tells exaggerated stories, laughs at his own jokes
-- Meow (Speaker 2): Smart, sarcastic, works in Finance, rolls eyes at Simba, dry wit
+- Simba (Speaker 1): Confident, silly, works in Marketing, tells exaggerated stories
+- Meow (Speaker 2): Smart, sarcastic, works in Finance, rolls eyes at Simba
+- Imti: IT guy, technical, always stressed about servers
+- Zulfi: HR manager, formal, corporate speak, sends too many emails
 
-RULES FOR NATURAL DIALOGUE:
-- Include fillers: "hmm", "oh", "um", "wait", "right?", "you know?", "like"
-- Include reactions: "haha", "oh my god", "no way", "seriously?", "what?"
+RULES:
+- Include fillers: "hmm", "oh", "um", "wait", "right?", "you know?"
+- Include reactions: "haha", "oh my god", "no way", "seriously?"
 - Include interruptions and overlapping thoughts
 - Include laughter: "haha", "lol", "hehe"
-- Include pauses indicated by "..." or "--"
-- Some lines should be short (1-3 words) like "No.", "Yes.", "What?!", "Exactly!"
-- Some lines should be long rants from Simba
-- Meow should sometimes cut Simba off
-- Include "wow", "ohhh", "mmmm", "ugh", "pfft"
-- Make it sound like two friends chatting, not reading
-- The humor should come from natural banter, not jokes
-- Keep it 35-50 lines
-- Use format: Speaker 1: and Speaker 2:
-- NO stage directions in brackets, just raw dialogue
-- Every few lines, have one character react with laughter or surprise
-"""},
-                {"role": "user", "content": f"Write a natural, funny podcast conversation about: {topic}\n\nMake it sound like two friends really talking, not reading a script. Include fillers, reactions, and laughter."}
-            ],
-            temperature=0.95,
-            max_tokens=1800,
+- Some lines short (1-3 words), some long rants
+- Use format: Speaker 1:, Speaker 2:, Imti:, or Zulfi:
+- 2-3 characters per episode
+- 35-50 lines
+- NO stage directions, just raw dialogue
+- Make it sound like friends chatting, not reading
+
+Conversation:"""
+
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"inputs": prompt, "parameters": {"max_new_tokens": 1500, "temperature": 0.95, "do_sample": True}},
+            timeout=120
         )
 
-        script = response.choices[0].message.content.strip()
-        lines = [l for l in script.split("\n") if l.strip() and ":" in l]
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                script = result[0].get("generated_text", "")
+            else:
+                script = str(result)
+        else:
+            print(f"  [AI] API error {response.status_code}: {response.text[:200]}")
+            return generate_script_from_template()
+
+        lines = [l.strip() for l in script.split("\n") if l.strip() and ":" in l]
+        lines = [l for l in lines if any(s in l for s in ["Speaker 1", "Speaker 2", "Imti", "Zulfi"])]
 
         if len(lines) < 10:
             print("  [AI] Script too short, using template")
@@ -182,7 +248,6 @@ RULES FOR NATURAL DIALOGUE:
 
         print(f"  [AI] Generated {len(lines)} lines")
 
-        # Save the script
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         script_path = os.path.join(SCRIPTS_DIR, f"episode_ai_{timestamp}.txt")
         os.makedirs(SCRIPTS_DIR, exist_ok=True)
@@ -201,7 +266,9 @@ def generate_script_from_template():
     """Generate script from template when AI is unavailable."""
     topic = random.choice(OFFICE_TOPICS)
 
+    # Templates with 2-3 characters including Imti and Zulfi
     templates = [
+        # Simba + Meow + Imti
         f"""Speaker 1: Oh my god, did you hear about the {topic.lower()}?
 Speaker 2: Wait, what? What happened?
 Speaker 1: It's... it's crazy. Like, seriously crazy.
@@ -212,55 +279,72 @@ Speaker 1: Well, apparently... someone... um... someone did something.
 Speaker 2: Someone did something. That's very specific.
 Speaker 1: I'm getting there! Don't rush me!
 Speaker 2: You literally just said "oh my god" and now you're stalling.
-Speaker 1: I'm not stalling! I'm building suspense. It's called storytelling.
-Speaker 2: It's called wasting my time.
-Speaker 1: Okay okay okay, so basically... hmm... how do I put this...
-Speaker 2: With words? Usually how conversations work.
-Speaker 1: Right, so... oh wait, I forgot what I was saying.
-Speaker 2: You forgot.
-Speaker 1: The {topic.lower()} distracted me! It's that serious!
-Speaker 2: You haven't even told me what happened yet.
-Speaker 1: Oh right, yeah, so basically... um... okay this is going to sound crazy.
-Speaker 2: It already sounds crazy.
-Speaker 1: So apparently... someone... I think it might have been Dave... or maybe Karen... or actually I don't know who...
-Speaker 2: You don't know who.
-Speaker 1: I know WHAT happened, just not WHO did it. Details, Meow, details!
-Speaker 2: Okay, what happened?
-Speaker 1: So basically... oh wait, do you hear that?
-Speaker 2: Hear what?
-Speaker 1: Never mind, I think it was the printer. That printer is haunted, I'm telling you.
-Speaker 2: The printer is not haunted.
-Speaker 1: It makes weird noises! At night! When nobody's around!
-Speaker 2: That's called... being a printer.
-Speaker 1: No no no, this is different. It's like... hmm... how do I describe it... it's like... ghost noises.
-Speaker 2: Ghost noises. From the printer.
-Speaker 1: Yes! Exactly! You get it!
-Speaker 2: I don't get it at all. You're insane.
-Speaker 1: I'm not insane! I'm observant! There's a difference!
-Speaker 2: There really isn't.
-Speaker 1: Okay fine, forget the printer. Back to the {topic.lower()}. So basically... oh wow, I just had the best idea.
-Speaker 2: Oh no.
-Speaker 1: What if... and hear me out here... what if we made a podcast episode about this?
-Speaker 2: We're literally recording a podcast episode about this right now.
-Speaker 1: Oh. Right. Hehe. That's... that's funny actually.
-Speaker 2: You're unbelievable.
-Speaker 1: I'm a genius! A misunderstood genius!
-Speaker 2: You're something, that's for sure.
-Speaker 1: Thank you! I'll take that as a compliment.
-Speaker 2: It wasn't one.
-Speaker 1: Too late, I already took it. Can't take it back. That's the rules.
-Speaker 2: What rules?
-Speaker 1: Simba's rules! Rule number one: everything Meow says is a compliment.
-Speaker 2: That's not a real rule.
-Speaker 1: Rule number two: Simba is always right.
-Speaker 2: Also not real.
-Speaker 1: Rule number three: the rules are real because Simba said so.
-Speaker 2: I'm done. I'm leaving.
-Speaker 1: Wait wait wait! Before you go... did I tell you about the time I...
-Speaker 2: No. Goodbye.
-Speaker 1: It involves the printer! And a rubber band! And the manager's shoes!
-Speaker 2: ...I'm listening. But only because I want to know how bad this story is.
-Speaker 1: Oh it's bad. It's really bad. But in a good way. Okay so basically...""",
+Imti: Hey guys, what's going on?
+Speaker 1: Imti! Perfect timing! Did you fix the printer yet?
+Imti: The printer? Again? What happened this time?
+Speaker 2: Simba was telling me about the {topic.lower()}.
+Imti: Oh, that. Yeah, I saw the email. Not my problem though.
+Speaker 1: Not your problem? You're IT!
+Imti: I fix computers, not office drama. Besides, I'm busy with the server.
+Speaker 2: The server? What's wrong with it?
+Imti: Nothing... yet. But it's making weird noises.
+Speaker 1: Ghost noises?
+Imti: No, not ghost noises. Fan noises. Probably.
+Speaker 2: Probably?
+Imti: Look, I'll check it later. Right now I need coffee.
+Speaker 1: Coffee! Great idea! Let's all get coffee!
+Speaker 2: We're literally in the middle of recording.
+Speaker 1: Oh. Right. Hehe. Hehe.""",
+        
+        # Simba + Meow + Zulfi
+        f"""Speaker 1: So anyway, about the {topic.lower()}...
+Speaker 2: Wait, Zulfi's coming.
+Zulfi: Good morning everyone. I hope you're all having a productive day.
+Speaker 1: Hey Zulfi! What's up?
+Zulfi: I need to discuss the new office policy regarding {topic.lower()}.
+Speaker 2: There's a policy for that?
+Zulfi: There's a policy for everything, Meow. Page 47, section 3, paragraph 2.
+Speaker 1: You memorized the policy manual?
+Zulfi: Of course. It's my job. Now, as I was saying...
+Speaker 2: Can we just skip to the part where we ignore it?
+Zulfi: That's... not how policies work.
+Speaker 1: Yeah Meow, we have to follow the rules!
+Speaker 2: You never follow rules.
+Speaker 1: I follow Simba's rules. Which are different.
+Zulfi: There are no "Simba's rules" in the employee handbook.
+Speaker 1: There should be! Rule number one: Simba is always right.
+Zulfi: That's... actually concerning.
+Speaker 2: Welcome to my world.
+Speaker 1: Okay okay, fine. What's the actual policy, Zulfi?
+Zulfi: Well, according to section 3, paragraph 2...
+Speaker 1: Oh wait, I forgot something. Be right back.
+Zulfi: ...He's gone. He always does this.
+Speaker 2: I know.""",
+        
+        # Meow + Imti + Zulfi (no Simba)
+        f"""Speaker 2: Finally, some peace and quiet.
+Imti: Hey Meow, where's Simba?
+Speaker 2: Hopefully far away. He was driving me crazy.
+Zulfi: Has anyone seen Simba? I need his expense report.
+Speaker 2: He said something about the printer and disappeared.
+Imti: The printer? I just fixed that yesterday.
+Speaker 2: Exactly.
+Zulfi: Well, when you see him, tell him the report is due by 5 PM.
+Imti: Yeah, good luck with that.
+Speaker 2: So Imti, what's really wrong with the server?
+Imti: Nothing's wrong... yet. But it's making noises.
+Zulfi: What kind of noises?
+Imti: Like... hum noises. And occasionally a click.
+Speaker 2: That sounds bad.
+Imti: It's fine. Probably. Maybe. I'll check it later.
+Zulfi: Please check it before it crashes. I have important emails to send.
+Speaker 2: More emails about policies nobody reads?
+Zulfi: People read them! They just... choose not to follow them.
+Imti: I read them. Then I ignore them. Different from not reading.
+Speaker 2: That's... actually worse.
+Imti: Hey, I'm IT. I fix things. I don't follow HR rules.
+Zulfi: That's going in my report.
+Imti: Which report? The one nobody reads?""",
     ]
 
     script = random.choice(templates)
@@ -298,6 +382,103 @@ def get_next_script(specific_number=None):
     return generate_script_with_ai()
 
 # ============================================================
+# SOUND EFFECTS
+# ============================================================
+
+def get_sound_effect(text):
+    """Detect if text needs a sound effect."""
+    laugh_words = ["haha", "lol", "hehe", "lmao", "hahaha"]
+    rimshot_words = ["ba dum tss", "rimshot", "drum roll"]
+    whoosh_words = ["whoosh", "swoosh", "dramatic"]
+    
+    text_lower = text.lower()
+    
+    for word in laugh_words:
+        if word in text_lower:
+            return "laugh"
+    
+    for word in rimshot_words:
+        if word in text_lower:
+            return "rimshot"
+    
+    for word in whoosh_words:
+        if word in text_lower:
+            return "whoosh"
+    
+    # Add laugh after certain patterns
+    if text_lower.endswith("haha") or text_lower.endswith("lol"):
+        return "laugh"
+    
+    return None
+
+def insert_sound_effects(audio_path, script_lines, output_dir):
+    """Insert sound effects at appropriate points in the audio."""
+    sfx_dir = ASSETS_DIR
+    laugh_path = os.path.join(sfx_dir, "laugh.mp3")
+    rimshot_path = os.path.join(sfx_dir, "rimshot.mp3")
+    whoosh_path = os.path.join(sfx_dir, "whoosh.mp3")
+    
+    if not all(os.path.exists(p) for p in [laugh_path, rimshot_path, whoosh_path]):
+        print("  Sound effects not found, skipping")
+        return audio_path
+    
+    # Get audio duration
+    duration = get_audio_duration(audio_path)
+    
+    # Find lines that need sound effects with their approximate timestamps
+    total_lines = len(script_lines)
+    time_per_line = duration / max(total_lines, 1)
+    
+    sfx_events = []
+    for i, (speaker, text) in enumerate(script_lines):
+        sfx = get_sound_effect(text)
+        if sfx:
+            timestamp = i * time_per_line
+            sfx_file = {"laugh": laugh_path, "rimshot": rimshot_path, "whoosh": whoosh_path}.get(sfx)
+            if sfx_file:
+                sfx_events.append((timestamp, sfx_file))
+    
+    if not sfx_events:
+        return audio_path
+    
+    print(f"  Mixing {len(sfx_events)} sound effects...")
+    
+    # Build FFmpeg filter to mix SFX at specific timestamps
+    filter_parts = []
+    inputs = ["-i", audio_path]
+    
+    for idx, (ts, sfx_file) in enumerate(sfx_events):
+        inputs.extend(["-i", sfx_file])
+        filter_parts.append(f"[{idx + 1}]adelay={int(ts * 1000)}|{int(ts * 1000)},volume=0.6[sfx{idx}]")
+    
+    # Mix all SFX with original
+    mix_inputs = "[0:a]"
+    for idx in range(len(sfx_events)):
+        mix_inputs += f"[sfx{idx}]"
+    
+    filter_parts.append(f"{mix_inputs}amix=inputs={len(sfx_events) + 1}:duration=first:dropout_transition=2[out]")
+    
+    output_audio = os.path.join(output_dir, "audio_with_sfx.mp3")
+    cmd = [FFMPEG_EXE, '-y'] + inputs + [
+        '-filter_complex', ';'.join(filter_parts),
+        '-map', '[out]',
+        '-c:a', 'libmp3lame', '-b:a', '192k',
+        output_audio
+    ]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0 and os.path.exists(output_audio):
+            print(f"  SFX mixed successfully")
+            return output_audio
+        else:
+            print(f"  SFX mix failed, using original audio")
+    except Exception as e:
+        print(f"  SFX mix error: {e}")
+    
+    return audio_path
+
+# ============================================================
 # AUDIO GENERATION (Edge TTS)
 # ============================================================
 
@@ -317,6 +498,26 @@ def parse_script(script_path):
                 lines.append((speaker, text))
     return lines
 
+def get_speaker_color(speaker):
+    """Get color for speaker label."""
+    colors = {
+        "Speaker 1": "#ff6b35",  # Orange - Simba
+        "Speaker 2": "#4a9eff",  # Blue - Meow
+        "Imti": "#00ff88",       # Green - IT
+        "Zulfi": "#ff44ff",      # Pink - HR
+    }
+    return colors.get(speaker, "#ffffff")
+
+def get_speaker_position(speaker, index, total):
+    """Get position for speaker label (cycle through positions)."""
+    positions = [
+        (20, 640),    # Left
+        (1160, 640),  # Right
+        (20, 580),    # Left top
+        (1160, 580),  # Right top
+    ]
+    return positions[index % len(positions)]
+
 def generate_audio(script_path, output_dir):
     print("[1/5] Generating audio...")
     import edge_tts
@@ -329,30 +530,64 @@ def generate_audio(script_path, output_dir):
     segments_dir = os.path.join(output_dir, "segments")
     os.makedirs(segments_dir, exist_ok=True)
 
-    # Generate each segment
+    # Generate segments in parallel batches for speed
     segment_files = []
-    for i, (speaker, text) in enumerate(lines):
+    
+    async def gen_segment(i, speaker, text, seg_path):
         voice = VOICES[speaker]
-        seg_path = os.path.join(segments_dir, f"seg_{i:04d}.mp3")
-
-        async def gen():
-            # Vary speed for natural feel
+        rate = "+0%"
+        if text.startswith("..."):
+            rate = "-10%"
+        elif "!" in text and len(text) < 20:
+            rate = "+5%"
+        elif speaker == "Imti":
+            rate = "+3%"
+        elif speaker == "Zulfi":
+            rate = "-3%"
+        
+        c = edge_tts.Communicate(text, voice, rate=rate)
+        await c.save(seg_path)
+        return seg_path
+    
+    async def gen_all():
+        tasks = []
+        for i, (speaker, text) in enumerate(lines):
+            seg_path = os.path.join(segments_dir, f"seg_{i:04d}.mp3")
+            tasks.append(gen_segment(i, speaker, text, seg_path))
+        return await asyncio.gather(*tasks, return_exceptions=True)
+    
+    try:
+        results = asyncio.run(gen_all())
+        for i, r in enumerate(results):
+            seg_path = os.path.join(segments_dir, f"seg_{i:04d}.mp3")
+            if isinstance(r, Exception):
+                print(f"  Warning: segment {i} failed: {r}")
+            elif os.path.exists(seg_path):
+                segment_files.append(seg_path)
+    except Exception as e:
+        print(f"  Async generation failed: {e}, falling back to sequential")
+        for i, (speaker, text) in enumerate(lines):
+            voice = VOICES[speaker]
+            seg_path = os.path.join(segments_dir, f"seg_{i:04d}.mp3")
             rate = "+0%"
             if text.startswith("..."):
                 rate = "-10%"
             elif "!" in text and len(text) < 20:
                 rate = "+5%"
-
-            c = edge_tts.Communicate(text, voice, rate=rate)
-            await c.save(seg_path)
-
-        try:
-            asyncio.run(gen())
-            segment_files.append(seg_path)
+            elif speaker == "Imti":
+                rate = "+3%"
+            elif speaker == "Zulfi":
+                rate = "-3%"
+            try:
+                async def gen():
+                    c = edge_tts.Communicate(text, voice, rate=rate)
+                    await c.save(seg_path)
+                asyncio.run(gen())
+                segment_files.append(seg_path)
+            except Exception as e2:
+                print(f"  Warning: segment {i} failed: {e2}")
             if (i + 1) % 10 == 0:
                 print(f"  {i + 1}/{len(lines)} segments...")
-        except Exception as e:
-            print(f"  Warning: segment {i} failed: {e}")
 
     if not segment_files:
         return None
@@ -362,7 +597,7 @@ def generate_audio(script_path, output_dir):
     # Build concat with small pauses between different speakers
     concat_file = os.path.join(segments_dir, "concat.txt")
     with open(concat_file, 'w') as f:
-        for i, seg in enumerate(segment_files):
+        for seg in segment_files:
             f.write(f"file '{seg.replace(os.sep, '/')}'\n")
 
     raw_audio = os.path.join(output_dir, "raw_audio.mp3")
@@ -455,22 +690,32 @@ def get_all_backgrounds():
     return images
 
 def create_intro_screen(output_dir, episode_title, episode_number):
-    """Create a 3-second intro screen."""
+    """Create a 4-second intro screen with characters."""
     intro_path = os.path.join(output_dir, "intro.mp4")
 
-    # Create intro with animated text
+    # Create intro with animated text and character names
     cmd = [
         FFMPEG_EXE, '-y',
-        '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=3',
+        '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=4',
         '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.1',
         '-vf', (
+            # Main title
             "drawtext=text='The Simba Show':fontcolor=white:fontsize=60:"
-            "x=(w-text_w)/2:y=(h-text_h)/2-50,"
-            "drawtext=text='Episode %d':fontcolor=#ffaa00:fontsize=36:"
-            "x=(w-text_w)/2:y=(h-text_h)/2+30" % episode_number
+            "x=(w-text_w)/2:y=150,"
+            # Episode number
+            "drawtext=text='Episode %d':fontcolor=#ffaa00:fontsize=40:"
+            "x=(w-text_w)/2:y=250," % episode_number,
+            # Character names
+            "drawtext=text='Simba':fontcolor=#ff6b35:fontsize=30:x=200:y=400,"
+            "drawtext=text='Meow':fontcolor=#4a9eff:fontsize=30:x=400:y=400,"
+            "drawtext=text='Imti':fontcolor=#00ff88:fontsize=30:x=600:y=400,"
+            "drawtext=text='Zulfi':fontcolor=#ff44ff:fontsize=30:x=800:y=400,"
+            # Tagline
+            "drawtext=text='Office Gossip Podcast':fontcolor=#aaaaaa:fontsize=24:"
+            "x=(w-text_w)/2:y=500"
         ),
         '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
-        '-t', '3',
+        '-t', '4',
         intro_path
     ]
 
@@ -481,21 +726,37 @@ def create_intro_screen(output_dir, episode_title, episode_number):
 
     return intro_path if os.path.exists(intro_path) else None
 
-def create_outro_screen(output_dir):
-    """Create a 3-second outro screen."""
+def create_outro_screen(output_dir, episode_number=None):
+    """Create a 5-second outro screen with end screen elements."""
     outro_path = os.path.join(output_dir, "outro.mp4")
 
+    # End screen with subscribe button and next episode teaser
+    next_ep = (episode_number or 1) + 1
+    
     cmd = [
         FFMPEG_EXE, '-y',
-        '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=3',
+        '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=5',
+        '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.1',
         '-vf', (
-            "drawtext=text='Subscribe for more!':fontcolor=white:fontsize=48:"
-            "x=(w-text_w)/2:y=(h-text_h)/2-30,"
-            "drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=36:"
-            "x=(w-text_w)/2:y=(h-text_h)/2+30"
+            # Main title
+            "drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=60:"
+            "x=(w-text_w)/2:y=100,"
+            # Subscribe button area
+            "drawbox=x=440:y=300:w=400:h=80:color=#ff0000:t=fill,"
+            "drawtext=text='SUBSCRIBE':fontcolor=white:fontsize=40:"
+            "x=(w-text_w)/2:y=315,"
+            # Next episode teaser
+            "drawtext=text='Next Episode Coming Tomorrow!':fontcolor=white:fontsize=30:"
+            "x=(w-text_w)/2:y=450,"
+            # Character names
+            "drawtext=text='Simba | Meow | Imti | Zulfi':fontcolor=#aaaaaa:fontsize=24:"
+            "x=(w-text_w)/2:y=520,"
+            # Social handles
+            "drawtext=text='@thesimbashowss':fontcolor=#888888:fontsize=20:"
+            "x=(w-text_w)/2:y=600"
         ),
         '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
-        '-t', '3',
+        '-t', '5',
         outro_path
     ]
 
@@ -507,15 +768,25 @@ def create_outro_screen(output_dir):
     return outro_path if os.path.exists(outro_path) else None
 
 def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_number):
-    """Create the main podcast video with speaker labels."""
+    """Create the main podcast video with speaker labels for all characters."""
     video_path = os.path.join(output_dir, "main_video.mp4")
 
-    # Add speaker name labels at bottom
+    # Add speaker name labels at bottom - all 4 characters
     vf = (
         "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
         "drawbox=x=0:y=620:w=1280:h=100:color=black@0.6:t=fill,"
-        "drawbox=x=20:y=640:w=100:h=30:color=#ff6b35:t=fill,"
-        "drawbox=x=1160:y=640:w=100:h=30:color=#4a9eff:t=fill"
+        # Simba - orange
+        "drawbox=x=20:y=640:w=80:h=25:color=#ff6b35:t=fill,"
+        "drawtext=text='Simba':fontcolor=white:fontsize=14:x=25:y=645,"
+        # Meow - blue
+        "drawbox=x=110:y=640:w=70:h=25:color=#4a9eff:t=fill,"
+        "drawtext=text='Meow':fontcolor=white:fontsize=14:x=115:y=645,"
+        # Imti - green
+        "drawbox=x=200:y=640:w=60:h=25:color=#00ff88:t=fill,"
+        "drawtext=text='Imti':fontcolor=white:fontsize=14:x=205:y=645,"
+        # Zulfi - pink
+        "drawbox=x=280:y=640:w=60:h=25:color=#ff44ff:t=fill,"
+        "drawtext=text='Zulfi':fontcolor=white:fontsize=14:x=285:y=645"
     )
 
     cmd = [
@@ -635,8 +906,8 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
     # Step 3: Create intro screen
     intro = create_intro_screen(output_dir, episode_title, episode_number)
 
-    # Step 4: Create outro screen
-    outro = create_outro_screen(output_dir)
+    # Step 4: Create outro screen with end screen elements
+    outro = create_outro_screen(output_dir, episode_number)
 
     # Step 5: Concatenate intro + main + outro
     final_path = os.path.join(output_dir, "final_video.mp4")
@@ -677,9 +948,28 @@ def create_thumbnail(output_dir, episode_title, episode_number):
 
     bg = random.choice(backgrounds)
 
-    # Just copy the background image as thumbnail
-    import shutil
-    shutil.copy2(bg, thumbnail)
+    # Create thumbnail with episode title overlay
+    cmd = [
+        FFMPEG_EXE, '-y',
+        '-i', bg,
+        '-vf', (
+            # Episode number badge
+            "drawbox=x=20:y=20:w=120:h=50:color=#ff0000:t=fill,"
+            "drawtext=text='EP %d':fontcolor=white:fontsize=28:x=30:y=28," % episode_number,
+            # Title at bottom
+            "drawbox=x=0:y=520:w=720:h=80:color=black@0.7:t=fill,"
+            "drawtext=text='%s':fontcolor=white:fontsize=24:x=10:y=545" % episode_title[:40]
+        ),
+        '-c:v', 'png',
+        thumbnail
+    ]
+
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=30)
+    except:
+        # Fallback: just copy the image
+        import shutil
+        shutil.copy2(bg, thumbnail)
 
     if os.path.exists(thumbnail):
         print("  Thumbnail created")
@@ -726,18 +1016,20 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None,
 
 ---
 About The Simba Show:
-Two cats, Simba and Meow, discuss office gossip in a hilarious podcast format.
+Four cats, Simba, Meow, Imti, and Zulfi, discuss office gossip in a hilarious podcast format.
 New episodes daily!
 
 Characters:
 - Simba: Confident, works in Marketing, tells exaggerated stories
 - Meow: Smart, sarcastic, works in Finance, keeps Simba in check
+- Imti: IT guy, always fixing things, speaks geek
+- Zulfi: HR manager, formal, sends too many emails
 
 ---
 Subscribe: https://youtube.com/@thesimbashowss
 ---
 
-#CatPodcast #SimbaAndMeow #FunnyCats #OfficeHumor #TheSimbaShow #CatComedy #Podcast #Shorts"""
+#CatPodcast #SimbaAndMeow #FunnyCats #OfficeHumor #TheSimbaShow #CatComedy #Podcast #Shorts #OfficeLife #CatComedy"""
 
     body = {
         "snippet": {
@@ -1033,7 +1325,7 @@ def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_
 
 def generate_episode(specific_number=None):
     print("=" * 60)
-    print("CAT PODCAST - EPISODE GENERATOR v2")
+    print("CAT PODCAST - EPISODE GENERATOR v4")
     print("=" * 60)
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -1043,11 +1335,6 @@ def generate_episode(specific_number=None):
         return None
 
     basename = os.path.basename(script_path)
-    ep_num = 1
-    for part in basename.replace(".", "_").split("_"):
-        if part.isdigit():
-            ep_num = int(part)
-            break
 
     # Use topic if provided, otherwise extract from filename
     if topic:
@@ -1055,9 +1342,8 @@ def generate_episode(specific_number=None):
     else:
         episode_title = basename.replace(".txt", "").replace("_", " ").title()
 
-    # Get episode count from processed
-    data = load_processed()
-    ep_count = len(data.get("episodes", [])) + 1
+    # Persistent episode number
+    ep_count = get_next_episode_number()
 
     print(f"\nScript: {basename}")
     print(f"Title: {episode_title}")
@@ -1072,6 +1358,10 @@ def generate_episode(specific_number=None):
     if not audio_path:
         print("\nFAILED: Audio")
         return None
+
+    # Step 1.5: Insert sound effects
+    script_lines = parse_script(script_path)
+    audio_path = insert_sound_effects(audio_path, script_lines, output_dir)
 
     # Step 2: Subtitles
     subtitle_path = generate_subtitles(script_path, audio_path, output_dir)
@@ -1112,6 +1402,9 @@ def generate_episode(specific_number=None):
         episode_number=ep_count
     )
 
+    # Track which speakers were used
+    speakers_used = list(set([s for s, _ in script_lines]))
+
     metadata = {
         "script": script_path,
         "title": episode_title,
@@ -1122,6 +1415,7 @@ def generate_episode(specific_number=None):
         "thumbnail": thumbnail_path,
         "upload": upload_result,
         "shorts": short_results,
+        "speakers": speakers_used,
         "timestamp": timestamp,
     }
 
@@ -1132,6 +1426,7 @@ def generate_episode(specific_number=None):
 
     print("\n" + "=" * 60)
     print("DONE!")
+    print(f"  Episode #{ep_count}")
     print(f"  Full Video: {video_path}")
     if upload_result:
         print(f"  YouTube: {upload_result['url']}")

@@ -2,7 +2,6 @@ name: Daily Cat Podcast (1 Video + 2 Shorts)
 
 on:
   schedule:
-    # Run every day at 10:00 AM UTC
     - cron: '0 10 * * *'
   workflow_dispatch:
 
@@ -23,9 +22,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install dependencies
-        run: |
-          pip install edge-tts
-          pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
+        run: pip install edge-tts requests google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
 
       - name: Decode YouTube credentials
         run: |
@@ -33,18 +30,12 @@ jobs:
           echo "${{ secrets.YOUTUBE_TOKEN_BASE64 }}" | base64 -d > automation/youtube_token.pickle
           echo "${{ secrets.YOUTUBE_CLIENT_SECRET_BASE64 }}" | base64 -d > automation/client_secret.json
 
-      - name: Update FFmpeg path for Linux
-        run: |
-          sed -i 's|FFMPEG_PATH = r".*"|FFMPEG_PATH = "/usr/bin"|' automation/generate_episode.py
-          sed -i 's|FFMPEG_EXE = os.path.join(FFMPEG_PATH, "ffmpeg.exe")|FFMPEG_EXE = os.path.join(FFMPEG_PATH, "ffmpeg")|' automation/generate_episode.py
-          sed -i 's|FFPROBE_EXE = os.path.join(FFMPEG_PATH, "ffprobe.exe")|FFPROBE_EXE = os.path.join(FFMPEG_PATH, "ffprobe")|' automation/generate_episode.py
-
       - name: Run episode generator
         working-directory: automation
         run: python generate_episode.py
         env:
           PYTHONUNBUFFERED: 1
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
 
       - name: Upload video artifacts
         uses: actions/upload-artifact@v4
