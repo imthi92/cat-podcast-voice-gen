@@ -1,0 +1,56 @@
+{
+  "episodes": [
+    {
+      "script_path": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\scripts\\episode_01_pilot.txt",
+      "timestamp": "2026-08-10T23:07:58.859062",
+      "metadata": {
+        "script": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\scripts\\episode_01_pilot.txt",
+        "title": "Cat Office Gossip - Episode 01 Pilot",
+        "episode_number": 1,
+        "audio": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\automation\\output\\episode_20260810_230528\\episode_audio.mp3",
+        "video": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\automation\\output\\episode_20260810_230528\\final_video.mp4",
+        "thumbnail": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\automation\\output\\episode_20260810_230528\\thumbnail.png",
+        "upload": {
+          "video_id": "HbexXDxXnwU",
+          "url": "https://youtube.com/watch?v=HbexXDxXnwU"
+        },
+        "timestamp": "20260810_230528"
+      }
+    },
+    {
+      "script_path": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\scripts\\episode_01_pilot.txt",
+      "timestamp": "2026-08-10T23:29:49.485454",
+      "metadata": {
+        "script": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\scripts\\episode_01_pilot.txt",
+        "title": "Episode 01 Pilot",
+        "episode_number": 1,
+        "audio": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\automation\\output\\episode_20260810_232453\\episode_audio.mp3",
+        "video": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\automation\\output\\episode_20260810_232453\\final_video.mp4",
+        "thumbnail": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\automation\\output\\episode_20260810_232453\\thumbnail.png",
+        "upload": {
+          "video_id": "UGG291IEVS0",
+          "url": "https://youtube.com/watch?v=UGG291IEVS0"
+        },
+        "shorts": [
+          {
+            "short": 1,
+            "upload": {
+              "video_id": "ofvFmQYV88o",
+              "url": "https://youtube.com/shorts/ofvFmQYV88o"
+            },
+            "video": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\automation\\output\\episode_20260810_232453\\shorts\\short_1\\short_video.mp4"
+          },
+          {
+            "short": 2,
+            "upload": {
+              "video_id": "KojoF4nnDV0",
+              "url": "https://youtube.com/shorts/KojoF4nnDV0"
+            },
+            "video": "C:\\Users\\Imtiyaz\\Documents\\New OpenCode Project\\automation\\output\\episode_20260810_232453\\shorts\\short_2\\short_video.mp4"
+          }
+        ],
+        "timestamp": "20260810_232453"
+      }
+    }
+  ]
+}
