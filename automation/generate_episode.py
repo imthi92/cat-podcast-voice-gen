@@ -28,6 +28,7 @@ SCRIPTS_DIR = os.path.join(os.path.dirname(BASE_DIR), "scripts")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 PROCESSED_FILE = os.path.join(BASE_DIR, "processed_episodes.json")
 COUNTER_FILE = os.path.join(BASE_DIR, "episode_counter.json")
+MEMORY_FILE = os.path.join(BASE_DIR, "character_memory.json")
 IMAGES_DIR = os.path.join(BASE_DIR, "downloaded_images")
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 CACHE_DIR = os.path.join(BASE_DIR, "cache")
@@ -44,6 +45,31 @@ CHARACTERS = {
     "Speaker 2": "Meow (Finance, smart, sarcastic, dry wit)",
     "Imti": "Imti (IT guy, technical, always fixing things, stressed)",
     "Zulfi": "Zulfi (HR manager, formal, corporate speak, manages people)",
+}
+
+# Natural speech: fillers, slang, and catchphrases per character
+FILLERS = ["hmm", "oh", "um", "uh", "wait", "right?", "you know?", "like", "okay so", "honestly", "i mean"]
+INTERJECTIONS = ["oh my god", "no way", "seriously?", "what?!", "exactly!", "big yikes", "oof", "yikes", "bro"]
+SLANG = ["lowkey", "no cap", "fr", "dead", "that's wild", "bet", "sus", "vibes", "lit", "snack", "stan", "rent free"]
+
+CATCHPHRASES = {
+    "Speaker 1": ["Trust me, I've seen this before.", "Watch this.", "Listen, I'm a genius."],
+    "Speaker 2": ["Anyway.", "Moving on.", "That's concerning.", "Noted.", "Cool story, bro."],
+    "Imti": ["Have you tried turning it off and on again?", "That's a server issue.", "It's always DNS."],
+    "Zulfi": ["Per the employee handbook...", "Let's circle back.", "This needs a policy.", "That's a compliance issue."],
+}
+
+# Sound effects available (auto-synthesized if missing)
+SFX_TYPES = {
+    "laugh": "laugh.mp3",
+    "giggle": "giggle.mp3",
+    "snort": "snort.mp3",
+    "gasp": "gasp.mp3",
+    "sigh": "sigh.mp3",
+    "whoosh": "whoosh.mp3",
+    "rimshot": "rimshot.mp3",
+    "applause": "applause.mp3",
+    "drumroll": "drumroll.mp3",
 }
 
 # FFmpeg auto-detect
@@ -166,28 +192,106 @@ OFFICE_TOPICS = [
     "Imti's emergency patch at 3 AM", "Zulfi's employee satisfaction survey",
 ]
 
+def load_character_memory():
+    """Load persistent character memory (traits, jokes, relationships)."""
+    if os.path.exists(MEMORY_FILE):
+        with open(MEMORY_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {
+        "episodes_done": 0,
+        "running_jokes": [],
+        "past_topics": [],
+        "relationships": {
+            "Simba_Meow": "Friendly rivals, Meow always corrects Simba's stories",
+            "Simba_Imti": "Simba keeps breaking things, Imti keeps fixing them",
+            "Imti_Zulfi": "Imti ignores Zulfi's policies, Zulfi sends complaints",
+            "Meow_Zulfi": "Meow finds Zulfi exhausting but polite",
+        },
+    }
+
+def save_character_memory(memory):
+    with open(MEMORY_FILE, 'w', encoding='utf-8') as f:
+        json.dump(memory, f, indent=2)
+
+def update_character_memory(topic, speakers):
+    """Record episode info for continuity across episodes."""
+    memory = load_character_memory()
+    memory["episodes_done"] = memory.get("episodes_done", 0) + 1
+    memory.setdefault("past_topics", []).append(topic)
+    memory["past_topics"] = memory["past_topics"][-10:]  # keep last 10
+
+    # Occasionally build a running joke from the topic
+    if memory.get("episodes_done", 0) % 3 == 0 and len(memory.get("running_jokes", [])) < 5:
+        joke = f"The cats still bring up: '{topic}' from a few episodes ago"
+        memory.setdefault("running_jokes", []).append(joke)
+
+    save_character_memory(memory)
+
+def _get_memory_context():
+    """Build a text block of character history for the AI prompt."""
+    memory = load_character_memory()
+    parts = []
+    if memory.get("running_jokes"):
+        parts.append("Running jokes from past episodes (reference ONE casually if natural):")
+        for joke in memory["running_jokes"][-3:]:
+            parts.append(f"- {joke}")
+    if memory.get("relationships"):
+        parts.append("Character relationships:")
+        for key, rel in memory["relationships"].items():
+            parts.append(f"- {key.replace('_', ' & ')}: {rel}")
+    return "\n".join(parts)
+
 def _get_script_prompt(topic):
+    """Enhanced prompt with few-shot examples, slang, and character memory."""
+    memory_context = _get_memory_context()
     return f"""Write a natural, funny cat podcast conversation about: {topic}
 
+STYLE - This is a GOOD example of how the dialogue should sound (mimic this energy):
+Speaker 1: Okay okay, so you're never gonna believe what happened.
+Speaker 2: I always don't believe what you're about to say. That's my whole thing.
+Speaker 1: No, this time it's real. Like, actually real. Hehe.
+Speaker 2: You said that about the mouse that was just a leaf.
+Speaker 1: ...it looked like a mouse from behind, okay?! Big yikes, moving on.
+Imti: Are we talking about the thing with the printer again?
+Speaker 1: Imti!! Perfect timing, bro. You're IT, you gotta hear this.
+Imti: I literally just fixed that printer yesterday. It's always DNS.
+Speaker 2: It's never DNS.
+Imti: ...it's DNS.
+
 Characters:
-- Simba (Speaker 1): Confident, silly, works in Marketing, tells exaggerated stories
-- Meow (Speaker 2): Smart, sarcastic, works in Finance, rolls eyes at Simba
-- Imti: IT guy, technical, always stressed about servers
-- Zulfi: HR manager, formal, corporate speak, sends too many emails
+- Simba (Speaker 1): Confident, silly, works in Marketing, exaggerates stories, says "trust me bro"
+- Meow (Speaker 2): Smart, sarcastic, dry wit, says "anyway" and "that's concerning", keeps Simba honest
+- Imti: IT guy, stressed about servers, says "have you tried turning it off and on again"
+- Zulfi: HR manager, formal, says "per the employee handbook", sends too many emails
+
+USE THESE NATURAL SPEECH TOOLS (mix them in, don't overdo):
+- Fillers: "hmm", "oh", "um", "uh", "wait", "right?", "you know?", "like"
+- Reactions: "haha", "oh my god", "no way", "seriously?", "big yikes", "oof"
+- Slang (light sprinkle): "lowkey", "no cap", "fr", "sus", "vibes", "bro"
+- Interruptions: someone cuts off another mid-sentence
+- Short punchy lines: "No.", "Yes.", "What?!", "Exactly!", "Nope."
+- Laughter: "haha", "lol", "hehe", "pfft"
+- Pauses: "..." or "--"
+
+STRUCTURE (emotional arc):
+1. OPENING HOOK (2-4 lines): someone reveals juicy gossip about the topic
+2. BUILD (10-15 lines): they argue about details, someone exaggerates, someone corrects
+3. CLIMAX (5-10 lines): the big reveal or dumbest decision made
+4. WRAP (3-5 lines): a laugh together, a zinger, and a quick "next time on the show"
 
 RULES:
-- Include fillers: "hmm", "oh", "um", "wait", "right?", "you know?"
-- Include reactions: "haha", "oh my god", "no way", "seriously?"
-- Include interruptions and overlapping thoughts
-- Include laughter: "haha", "lol", "hehe"
-- Some lines short (1-3 words), some long rants
-- Use format: Speaker 1:, Speaker 2:, Imti:, or Zulfi:
-- 2-3 characters per episode
-- 35-50 lines
-- NO stage directions, just raw dialogue
-- Make it sound like friends chatting, not reading
+- 2-3 characters per episode (rotate who appears)
+- 35-50 lines total
+- Use format EXACTLY: "Speaker 1:", "Speaker 2:", "Imti:", or "Zulfi:"
+- NO stage directions in brackets
+- NO "narrator" lines
+- End on a funny beat, not a summary
+- Sound like real friends chatting in an office, not a script
+
+{memory_context}
 
 Conversation:"""
+
 
 def _parse_ai_script(raw_text):
     """Extract valid dialogue lines from raw AI output."""
@@ -356,6 +460,32 @@ Speaker 2: That's... actually worse.
 Imti: Hey, I'm IT. I fix things. I don't follow HR rules.
 Zulfi: That's going in my report.
 Imti: Which report? The one nobody reads?""",
+        f"""Speaker 2: Okay, real talk. Who here has actually seen the {topic.lower()}?
+Speaker 1: Oh! Oh! I have a story. I have SUCH a story.
+Speaker 2: It's been 4 seconds and you're already exhausting me.
+Speaker 1: No cap, this is the wildest thing that's happened all month.
+Imti: If this is about the mouse again—
+Speaker 1: IT WAS A LEAF, AND WE MOVED ON.
+Speaker 2: Anyway. Please continue, Simba.
+Speaker 1: So I'm walking to the kitchen, right? Lowkey vibes, just getting a snack.
+Speaker 2: And?
+Speaker 1: And I hear the weirdest noise. Like... buh-dup. Buh-dup.
+Imti: That's the printer. It does that when it's dying. It's fine. Probably.
+Speaker 1: It's not fine, Imti! The paper came out and it had like... a face on it?!
+Speaker 2: A face? Like an actual face?
+Speaker 1: Like, a potato face. Blobby. Deeply cursed.
+Speaker 2: So you're telling me the printer is haunted.
+Speaker 1: I'm telling you it's haunted, bro. Big yikes energy.
+Imti: I can literally hear the ghost. It's the toner drum. It needs replacing.
+Speaker 1: OR. And hear me out. We name it. Gary.
+Speaker 2: We're not naming the haunted printer Gary.
+Speaker 1: Too late. I already put a sticky note on it that says Gary.
+Imti: Oh my god. You know what, sure. Gary's fine. He can keep making the noise.
+Speaker 2: This is how we end up on a company-wide email.
+Speaker 1: Zulfi's gonna send a policy about haunted printer etiquette.
+Speaker 2: He already has one. Page 63. It says "per the employee handbook, paranormal activity should be reported to HR."
+Speaker 1: Wait, seriously?!
+Speaker 2: No. But I'm gonna add it now. That's content.""",
     ]
     script = random.choice(templates)
     print(f"  [Template] Generated about: {topic}")
@@ -413,25 +543,104 @@ def get_next_script(specific_number=None):
 # ============================================================
 
 def get_sound_effect(text):
-    text_lower = text.lower()
-    for word in ["haha", "lol", "hehe", "lmao", "hahaha"]:
-        if word in text_lower:
-            return "laugh"
-    for word in ["ba dum tss", "rimshot", "drum roll"]:
-        if word in text_lower:
-            return "rimshot"
-    for word in ["whoosh", "swoosh", "dramatic"]:
-        if word in text_lower:
-            return "whoosh"
+    """Detect natural sounds in dialogue."""
+    t = text.lower()
+    
+    # Laughter variations
+    if any(w in t for w in ["hahaha", "hahaha", "lol", "lmao", "rofl"]):
+        return "laugh"
+    if any(w in t for w in ["hehe", "hee hee", "giggle"]):
+        return "giggle"
+    if any(w in t for w in ["pfft", "snort", "snicker"]):
+        return "snort"
+    
+    # Gasps / surprise
+    if any(w in t for w in ["gasp", "*gasp*", "oh my god", "oh my gosh", "no way!", "what?!", "whoa"]):
+        return "gasp"
+    
+    # Sighs / frustration
+    if any(w in t for w in ["sigh", "ugh", "ughh", "*sigh*", "pff"]):
+        return "sigh"
+    
+    # Whoosh / dramatic
+    if any(w in t for w in ["whoosh", "swoosh", "dramatic"]):
+        return "whoosh"
+    
+    # Rimshot / jokes
+    if any(w in t for w in ["ba dum tss", "rimshot", "drum roll"]):
+        return "rimshot"
+    
+    # Applause
+    if any(w in t for w in ["applause", "clap", "*claps*", "round of applause"]):
+        return "applause"
+    
     return None
 
+def _synthesize_sfx(name, output_path):
+    """Synthesize a sound effect with FFmpeg if the file doesn't exist."""
+    try:
+        if name == "laugh" or name == "giggle":
+            # Laugh-like: rapid rising tone blips
+            cmd = [FFMPEG_EXE, '-y', '-f', 'lavfi',
+                   '-i', 'sine=frequency=700:duration=0.5',
+                   '-af', 'aecho=0.8:0.7:60|120:0.4|0.3,volume=0.8',
+                   '-c:a', 'libmp3lame', '-b:a', '128k', output_path]
+        elif name == "snort":
+            cmd = [FFMPEG_EXE, '-y', '-f', 'lavfi',
+                   '-i', 'anoisesrc=d=0.3:c=pink:r=44100:a=0.5',
+                   '-af', 'lowpass=f=800,volume=0.7',
+                   '-c:a', 'libmp3lame', '-b:a', '128k', output_path]
+        elif name == "gasp":
+            cmd = [FFMPEG_EXE, '-y', '-f', 'lavfi',
+                   '-i', 'anoisesrc=d=0.15:c=white:r=44100:a=0.4',
+                   '-af', 'highpass=f=1500,lowpass=f=4000,volume=1.5',
+                   '-c:a', 'libmp3lame', '-b:a', '128k', output_path]
+        elif name == "sigh":
+            cmd = [FFMPEG_EXE, '-y', '-f', 'lavfi',
+                   '-i', 'sine=frequency=400:duration=0.8',
+                   '-af', 'afade=t=out:st=0.5:d=0.3,volume=0.4',
+                   '-c:a', 'libmp3lame', '-b:a', '128k', output_path]
+        elif name == "applause":
+            cmd = [FFMPEG_EXE, '-y', '-f', 'lavfi',
+                   '-i', 'anoisesrc=d=1.5:c=pink:r=44100:a=0.3',
+                   '-af', 'lowpass=f=3000,volume=1.2',
+                   '-c:a', 'libmp3lame', '-b:a', '128k', output_path]
+        elif name == "drumroll":
+            cmd = [FFMPEG_EXE, '-y', '-f', 'lavfi',
+                   '-i', 'anoisesrc=d=1.2:c=white:r=44100:a=0.3',
+                   '-af', 'lowpass=f=2000,volume=0.8',
+                   '-c:a', 'libmp3lame', '-b:a', '128k', output_path]
+        else:
+            # Default whoosh/rimshot - noise sweep
+            cmd = [FFMPEG_EXE, '-y', '-f', 'lavfi',
+                   '-i', 'anoisesrc=d=0.5:c=white:r=44100:a=0.5',
+                   '-af', 'bandpass=f=2000:w=1000,volume=0.9',
+                   '-c:a', 'libmp3lame', '-b:a', '128k', output_path]
+
+        subprocess.run(cmd, capture_output=True, timeout=15)
+        return os.path.exists(output_path)
+    except Exception:
+        return False
+
+def ensure_sound_effects():
+    """Make sure all SFX files exist (from repo or synthesized)."""
+    os.makedirs(ASSETS_DIR, exist_ok=True)
+    available = {}
+    for name, filename in SFX_TYPES.items():
+        path = os.path.join(ASSETS_DIR, filename)
+        if not os.path.exists(path):
+            if _synthesize_sfx(name, path):
+                print(f"  [SFX] Synthesized: {filename}")
+            else:
+                print(f"  [SFX] Could not create: {filename}")
+                continue
+        available[name] = path
+    return available
+
 def insert_sound_effects(audio_path, script_lines, output_dir):
-    sfx_dir = ASSETS_DIR
-    laugh_path = os.path.join(sfx_dir, "laugh.mp3")
-    rimshot_path = os.path.join(sfx_dir, "rimshot.mp3")
-    whoosh_path = os.path.join(sfx_dir, "whoosh.mp3")
-    if not all(os.path.exists(p) for p in [laugh_path, rimshot_path, whoosh_path]):
-        print("  Sound effects not found, skipping")
+    sfx_paths = ensure_sound_effects()
+    if not sfx_paths:
+        print("  No sound effects available, skipping")
         return audio_path
 
     duration = get_audio_duration(audio_path)
@@ -441,11 +650,9 @@ def insert_sound_effects(audio_path, script_lines, output_dir):
 
     for i, (speaker, text) in enumerate(script_lines):
         sfx = get_sound_effect(text)
-        if sfx:
+        if sfx and sfx in sfx_paths:
             timestamp = i * time_per_line
-            sfx_file = {"laugh": laugh_path, "rimshot": rimshot_path, "whoosh": whoosh_path}.get(sfx)
-            if sfx_file:
-                sfx_events.append((timestamp, sfx_file))
+            sfx_events.append((timestamp, sfx_paths[sfx]))
 
     if not sfx_events:
         return audio_path
@@ -1333,6 +1540,7 @@ def generate_episode(specific_number=None):
         json.dump(metadata, f, indent=2)
 
     mark_processed(script_path, metadata)
+    update_character_memory(topic or episode_title, speakers_used)
 
     print("\n" + "=" * 60)
     print("DONE!")
