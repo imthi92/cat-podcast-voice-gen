@@ -333,9 +333,21 @@ Conversation:"""
 
 def _parse_ai_script(raw_text):
     """Extract valid dialogue lines from raw AI output."""
-    lines = [l.strip() for l in raw_text.split("\n") if l.strip() and ":" in l]
     valid_speakers = ["Speaker 1", "Speaker 2", "Imti", "Zulfi"]
-    lines = [l for l in lines if any(s in l for s in valid_speakers)]
+    lines = []
+    for l in raw_text.split("\n"):
+        l = l.strip()
+        if not l or ":" not in l:
+            continue
+        speaker = l.split(":", 1)[0].strip()
+        # Strip markdown/emphasis characters for matching ("**Imti**" -> "Imti")
+        bare = speaker.strip().strip('*_`').strip()
+        if bare not in valid_speakers:
+            continue
+        text = l.split(":", 1)[1].strip()
+        if not text:
+            continue
+        lines.append(f"{bare}: {text}")
     return lines
 
 def _pick_unique_topic():
@@ -590,11 +602,40 @@ def get_next_script(specific_number=None):
         return None, None
     for script in scripts:
         if not is_processed(script):
-            basename = os.path.basename(script)
-            topic = basename.replace(".txt", "").replace("_", " ").title()
+            topic = _derive_topic_from_script(script)
             return script, topic
     print("  All existing scripts used, generating new content...")
     return generate_script_with_ai()
+
+
+def _derive_topic_from_script(script_path):
+    """Derive a readable topic/title from a script file.
+    AI scripts are named episode_ai_<timestamp>.txt with no topic in the name,
+    so we try to extract the subject from the first dialogue line."""
+    basename = os.path.basename(script_path)
+    try:
+        with open(script_path, 'r', encoding='utf-8') as f:
+            first = f.readline().strip()
+        if first and ":" in first:
+            text = first.split(":", 1)[1].strip().strip('?!.," ')
+            text = text.replace(",", "")
+            # Clean up common leading phrases to make a decent title
+            for prefix in ["oh my god did you hear about", "did you hear about",
+                           "so anyway about the", "so basically", "okay so",
+                           "oh my god did you hear"]:
+                if text.lower().startswith(prefix):
+                    text = text[len(prefix):].strip('?!.," ')
+                    break
+            # drop leading articles for readability
+            for art in ["the ", "a ", "an "]:
+                if text.lower().startswith(art) and len(text) > 6:
+                    text = text[len(art):]
+                    break
+            if text:
+                return text[:60].capitalize()
+    except Exception:
+        pass
+    return basename.replace(".txt", "").replace("_", " ").title()
 
 # ============================================================
 # SOUND EFFECTS
@@ -602,6 +643,8 @@ def get_next_script(specific_number=None):
 
 def get_sound_effect(text):
     """Detect natural sounds in dialogue."""
+    if not text:
+        return None
     t = text.lower()
     
     # Laughter variations
@@ -625,7 +668,7 @@ def get_sound_effect(text):
         return "whoosh"
     
     # Rimshot / jokes
-    if any(w in t for w in ["ba dum tss", "rimshot", "drum roll"]):
+    if any(w in t for w in ["ba dum tss", "rimshot", "drum roll", "drumroll"]):
         return "rimshot"
     
     # Applause
@@ -1176,7 +1219,8 @@ def add_background_music(video_path, audio_path, output_dir):
         FFMPEG_EXE, '-y', '-i', video_path,
         '-stream_loop', '-1', '-i', music_file,
         '-filter_complex',
-        f'[1:a]volume=0.08,atrim=0:{duration},afade=t=in:d=3,afade=t=out:st={duration-3}:d=3[music];[0:a][music]amix=inputs=2:duration=first:dropout_transition=2',
+        f'[1:a]volume=0.08,atrim=0:{duration},afade=t=in:d=3,afade=t=out:st={duration-3}:d=3[music];[0:a][music]amix=inputs=2:duration=first:dropout_transition=2[out]',
+        '-map', '0:v', '-map', '[out]',
         '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', final_path
     ]
     try:
@@ -1227,7 +1271,7 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
     intro = create_intro_screen(output_dir, episode_title, episode_number)
     outro = create_outro_screen(output_dir, episode_number)
 
-    final_path = os.path.join(output_dir, "final_video.mp4")
+    concat_path = os.path.join(output_dir, "concat_video.mp4")
     concat_list = os.path.join(output_dir, "concat_list.txt")
     with open(concat_list, 'w') as f:
         if intro:
@@ -1237,13 +1281,15 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
             f.write(f"file '{os.path.abspath(outro).replace(os.sep, '/')}'\n")
 
     cmd = [FFMPEG_EXE, '-y', '-f', 'concat', '-safe', '0',
-           '-i', concat_list, '-c', 'copy', final_path]
+           '-i', concat_list, '-c', 'copy', concat_path]
     try:
         subprocess.run(cmd, capture_output=True, timeout=60)
     except:
         pass
 
-    return final_path if os.path.exists(final_path) else video_with_music
+    if os.path.exists(concat_path):
+        return add_subtitles(concat_path, subtitle_path, output_dir)
+    return video_with_music
 
 # ============================================================
 # THUMBNAIL
