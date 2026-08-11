@@ -1081,6 +1081,8 @@ def create_outro_screen(output_dir, episode_number=None):
 
 def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_number):
     video_path = os.path.abspath(os.path.join(output_dir, "main_video.mp4"))
+    audio_path = os.path.abspath(audio_path)
+    bg_image = os.path.abspath(bg_image)
     _ensure_font_in(output_dir)
     fa = _font_arg()
     vf = (
