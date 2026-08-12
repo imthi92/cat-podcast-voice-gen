@@ -1121,7 +1121,7 @@ def create_intro_screen(output_dir, episode_title, episode_number):
             f"drawtext=text='Office Gossip Podcast':fontcolor=#aaaaaa:fontsize=24{fa}:"
             "x=(w-text_w)/2:y=500"
         ),
-        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '4', intro_path
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '44100', '-t', '4', intro_path
     ]
     try:
         subprocess.run(cmd, capture_output=True, timeout=30, cwd=output_dir)
@@ -1151,7 +1151,7 @@ def create_outro_screen(output_dir, episode_number=None):
             f"drawtext=text='@thesimbashowss':fontcolor=#888888:fontsize=20{fa}:"
             "x=(w-text_w)/2:y=600"
         ),
-        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '5', outro_path
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '44100', '-t', '5', outro_path
     ]
     try:
         subprocess.run(cmd, capture_output=True, timeout=30, cwd=output_dir)
@@ -1180,7 +1180,7 @@ def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_n
     cmd = [
         FFMPEG_EXE, '-y', '-loop', '1', '-i', bg_image, '-i', audio_path,
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
-        '-c:a', 'aac', '-b:a', '128k', '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-pix_fmt', 'yuv420p',
         '-vf', vf, '-shortest', video_path
     ]
     try:
@@ -1197,7 +1197,7 @@ def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_n
         cmd2 = [
             FFMPEG_EXE, '-y', '-loop', '1', '-i', bg_image, '-i', audio_path,
             '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
-            '-c:a', 'aac', '-b:a', '128k', '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-pix_fmt', 'yuv420p',
             '-vf', vf_no_text, '-shortest', video_path
         ]
         try:
@@ -1221,7 +1221,7 @@ def add_background_music(video_path, audio_path, output_dir):
         '-filter_complex',
         f'[1:a]volume=0.08,atrim=0:{duration},afade=t=in:d=3,afade=t=out:st={duration-3}:d=3[music];[0:a][music]amix=inputs=2:duration=first:dropout_transition=2[out]',
         '-map', '0:v', '-map', '[out]',
-        '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', final_path
+        '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-ar', '44100', final_path
     ]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
