@@ -1,7 +1,9 @@
 {
-  "episodes_done": 0,
+  "episodes_done": 1,
   "running_jokes": [],
-  "past_topics": [],
+  "past_topics": [
+    "Welcome to \"the simba show\"! i'm simba the smartest cat in t"
+  ],
   "relationships": {
     "Simba_Meow": "Friendly rivals, Meow always corrects Simba's stories",
     "Simba_Imti": "Simba keeps breaking things, Imti keeps fixing them",
