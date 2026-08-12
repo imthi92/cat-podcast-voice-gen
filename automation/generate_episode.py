@@ -166,9 +166,17 @@ def save_processed(data):
         json.dump(data, f, indent=2)
 
 def is_processed(script_path):
+    """Check if a script was already processed.
+
+    Matches by basename, NOT full path, because the GitHub Actions runner
+    checks out to /home/runner/work/... while local runs use C:\\Users\\...
+    Full-path comparison would always miss on a different OS and cause
+    episode_01 to be re-processed on every GitHub run.
+    """
+    target = os.path.basename(script_path)
     data = load_processed()
     for ep in data.get("episodes", []):
-        if ep.get("script_path") == script_path:
+        if os.path.basename(ep.get("script_path", "")) == target:
             return True
     return False
 
@@ -646,35 +654,37 @@ def get_sound_effect(text):
     if not text:
         return None
     t = text.lower()
-    
+
     # Laughter variations
-    if any(w in t for w in ["hahaha", "haha", "lol", "lmao", "rofl"]):
+    if any(w in t for w in ["hahahaha", "hahahaa", "hahaha", "hahaa", "haha", "lol", "lmao", "rofl", "kekeke"]):
         return "laugh"
-    if any(w in t for w in ["hehe", "hee hee", "giggle"]):
+    if any(w in t for w in ["hehehe", "hehe", "hee hee", "hihihi", "giggle"]):
         return "giggle"
-    if any(w in t for w in ["pfft", "snort", "snicker"]):
+    if any(w in t for w in ["pfft", "snort", "snicker", "pshh"]):
         return "snort"
-    
-    # Gasps / surprise
-    if any(w in t for w in ["gasp", "*gasp*", "oh my god", "oh my gosh", "no way!", "what?!", "whoa"]):
+
+    # Gasps / surprise / whoa reactions
+    if any(w in t for w in ["gasp", "*gasp*", "oh my god", "oh my gosh", "no way", "what?!", "whaat",
+                            "whoa", "woah", "ooh", "ohh!", "ahh!", "ahhh", "wowww", "wooow", "woooow",
+                            "omg", "hold on", "huh?"]):
         return "gasp"
-    
-    # Sighs / frustration
-    if any(w in t for w in ["sigh", "ugh", "ughh", "*sigh*", "pff"]):
+
+    # Sighs / frustration / meh
+    if any(w in t for w in ["sigh", "ugh", "ughh", "uggg", "meh", "*sigh*", "pff", "ehhh", "hmmph"]):
         return "sigh"
-    
-    # Whoosh / dramatic
-    if any(w in t for w in ["whoosh", "swoosh", "dramatic"]):
+
+    # Whoosh / dramatic / swoosh
+    if any(w in t for w in ["whoosh", "swoosh", "wooosh", "woooosh", "woooosh!", "dramatic", "swish"]):
         return "whoosh"
-    
+
     # Rimshot / jokes
-    if any(w in t for w in ["ba dum tss", "rimshot", "drum roll", "drumroll"]):
+    if any(w in t for w in ["ba dum tss", "badumtss", "rimshot", "drum roll", "drumroll"]):
         return "rimshot"
-    
+
     # Applause
-    if any(w in t for w in ["applause", "clap", "*claps*", "round of applause"]):
+    if any(w in t for w in ["applause", "clap", "*claps*", "round of applause", "bravo"]):
         return "applause"
-    
+
     return None
 
 def _synthesize_sfx(name, output_path):
@@ -746,13 +756,14 @@ def insert_sound_effects(audio_path, script_lines, output_dir):
 
     duration = get_audio_duration(audio_path)
     total_lines = len(script_lines)
-    time_per_line = duration / max(total_lines, 1)
+    # Use real segment durations so SFX land on the actual speech moments
+    seg_times = get_segment_times(output_dir, total_lines, duration)
     sfx_events = []
 
     for i, (speaker, text) in enumerate(script_lines):
         sfx = get_sound_effect(text)
         if sfx and sfx in sfx_paths:
-            timestamp = i * time_per_line
+            timestamp = seg_times[i][0]
             sfx_events.append((timestamp, sfx_paths[sfx]))
 
     if not sfx_events:
@@ -816,6 +827,87 @@ def get_speaker_color(speaker):
     }
     return colors.get(speaker, "#ffffff")
 
+# --- NATURAL SPEECH ---
+# Vocal interjections we inject into the TTS text so the voice actually
+# EXPRESSES excitement, laughter, hesitations and reactions (not just says the
+# words flatly). Edge TTS reads these naturally:
+#   "Hmm..." "Ohh!" "Woooow!" "Hahaha!" "Ugh..." "Oof" "Mmm" "Pfft"
+NATURAL_PREFILLERS = ["Hmm,", "Ohh,", "Wait,", "Okay so,", "So,", "Well,"]
+NATURAL_LONG_EXCL = ["Woooow!", "Whoa!", "No way!", "Oof.", "Hahaha!", "Hehe.", "Ugh...", "Ooh!"]
+NATURAL_SHORT_EXCL = ["Hmm.", "Eh.", "Oof.", "Hahaha!", "Hehe.", "Pfft.", "Mmm.", "Ooh!"]
+_last_filler = None
+
+def _pick_filler():
+    """Pick a spoken filler, avoiding repeating the same one back-to-back."""
+    global _last_filler
+    options = [f for f in NATURAL_PREFILLERS if f != _last_filler]
+    if not options:
+        options = NATURAL_PREFILLERS
+    chosen = random.choice(options)
+    _last_filler = chosen
+    return chosen
+
+def naturalize_text(text, line_index, total_lines):
+    """Make a TTS line sound human: add light fillers, laughter, reactions.
+
+    Heavily modulated so the voice sounds casual and excited instead of a flat
+    robot reading. We only prepend/append — we never rewrite the script word.
+    Fillers are spread out (never repeated on consecutive lines) and tamed on
+    questions so it still reads naturally.
+
+    line_index/total_lines let early lines get a confident opener and the
+    final line(s) get a punchy sign-off.
+    """
+    t = text.strip()
+    if not t or "[" in t or "]" in t:
+        return t
+    low = t.lower()
+
+    already_expressive = any(
+        w in low for w in ["hmm", "ohh", "oh my", "wow", "whoa", "haha", "hehe",
+                           "ugh", "oof", "mmm", "pfft", "ooh", "wait", "like,"]
+    )
+    if already_expressive:
+        return t
+
+    has_question = t.rstrip().endswith("?")
+    has_exclaim = "!" in t
+    is_last = line_index >= total_lines - 2
+    is_first = line_index <= 0
+    is_short = len(t) < 25
+
+    # Reject a filler when the last already-used prefix would be a weird
+    # lead-in for a question or when we just used one next to a question.
+    if is_last:
+        opener = random.choice(["Okay so,", "So,", "Well,", ""])
+        tail = random.choice([" ...hahaha!", " ...oof.", " ...goodnight everyone.", ""])
+    elif is_first:
+        opener = random.choice(["Okay okay, ", "So, ", "Alright, "])
+        tail = random.choice([" ...hehe.", " ...right?", ""])
+    elif is_short:
+        # Short punchy line: kick it up, but keep questions as questions
+        if has_question:
+            opener = ""
+            tail = random.choice([" ...?", " ...hmm?", " ...right?", ""])
+            if random.random() < 0.3:
+                opener = random.choice(["Wait, ", "Hmm, "])
+        else:
+            opener = random.choice(["Ohh, ", "Wait, ", "No way, ", "Hahaha! ", "Pfft. ", ""])
+            tail = random.choice([" ", " haha.", " oof.", "!"])
+    else:
+        # Standard line: occasional light filler, rare reaction tail
+        opener = ""
+        if random.random() < 0.30:
+            opener = _pick_filler() + " "
+        tail = ""
+        if has_exclaim and random.random() < 0.35:
+            tail = random.choice(["!", " ...wow!", " ...hahaha!", ""])
+        elif random.random() < 0.12:
+            tail = random.choice([" ...hehe.", " ...oof.", " ...right?", ""])
+
+    return opener + t + tail
+
+
 # --- RANK 1: Edge TTS (best quality) ---
 def _tts_edge(segments_dir, lines):
     """Rank 1: Microsoft Edge TTS - best free quality."""
@@ -824,6 +916,7 @@ def _tts_edge(segments_dir, lines):
 
     async def gen_segment(i, speaker, text, seg_path):
         voice = VOICES[speaker]
+        spoken = naturalize_text(text, i, len(lines))
         rate = "+0%"
         if text.startswith("..."):
             rate = "-10%"
@@ -833,7 +926,7 @@ def _tts_edge(segments_dir, lines):
             rate = "+3%"
         elif speaker == "Zulfi":
             rate = "-3%"
-        c = edge_tts.Communicate(text, voice, rate=rate)
+        c = edge_tts.Communicate(spoken, voice, rate=rate)
         await c.save(seg_path)
 
     async def gen_all():
@@ -869,7 +962,8 @@ def _tts_gtts(segments_dir, lines):
         seg_path = os.path.join(segments_dir, f"seg_{i:04d}.mp3")
         try:
             lang = gtts_voices.get(speaker, "en")
-            tts = gTTS(text=text, lang=lang)
+            spoken = naturalize_text(text, i, len(lines))
+            tts = gTTS(text=spoken, lang=lang)
             tts.save(seg_path)
             if os.path.exists(seg_path):
                 segment_files.append(seg_path)
@@ -1007,11 +1101,11 @@ def generate_subtitles(script_path, audio_path, output_dir):
     if not dialogue:
         return None
 
-    time_per_line = total_duration / len(dialogue)
+    # Use real per-segment durations so subtitles sync with per-speaker clips
+    times = get_segment_times(output_dir, len(dialogue), total_duration)
     srt_content = ""
     for i, text in enumerate(dialogue):
-        start = i * time_per_line
-        end = (i + 1) * time_per_line
+        start, end = times[i]
         s = f"00:{int(start)//60:02d}:{int(start)%60:02d},{int((start%1)*1000):03d}"
         e = f"00:{int(end)//60:02d}:{int(end)%60:02d},{int((end%1)*1000):03d}"
         srt_content += f"{i+1}\n{s} --> {e}\n{text}\n\n"
@@ -1159,8 +1253,134 @@ def create_outro_screen(output_dir, episode_number=None):
         pass
     return outro_path if os.path.exists(outro_path) else None
 
+def get_speaker_image(speaker):
+    """Pick the character image for a speaker from downloaded_images.
+
+    Speaker 1 = Simba (orange tabby), Speaker 2 = Meow (black cat),
+    Imti/Zulfi = studio/group images. Falls back to None so callers can use
+    a background image instead.
+    """
+    keywords = {
+        "Speaker 1": ["orange"],
+        "Speaker 2": ["black"],
+        "Imti": ["wide", "studio", "two"],
+        "Zulfi": ["wide", "studio", "two"],
+    }
+    kws = keywords.get(speaker, [])
+    if os.path.exists(IMAGES_DIR):
+        for f in os.listdir(IMAGES_DIR):
+            low = f.lower()
+            if not f.endswith((".jpg", ".jpeg", ".png")) or f.startswith("episode"):
+                continue
+            if any(k in low for k in kws):
+                return os.path.join(IMAGES_DIR, f)
+    return None
+
+def _speaker_display_name(speaker):
+    return {
+        "Speaker 1": "Simba",
+        "Speaker 2": "Meow",
+        "Imti": "Imti",
+        "Zulfi": "Zulfi",
+    }.get(speaker, speaker)
+
+def get_segment_times(output_dir, num_lines, total_duration):
+    """Return (start, end) per dialogue line using real segment durations.
+
+    Audio segments are saved as output_dir/segments/seg_*.mp3 in order.
+    When they exist we use their real durations so the speaker image switches
+    line up with the actual speech. Otherwise we fall back to a uniform split.
+    """
+    seg_dir = os.path.join(output_dir, "segments")
+    segs = sorted(glob.glob(os.path.join(seg_dir, "seg_*.mp3")))
+    if len(segs) >= num_lines:
+        starts = []
+        cursor = 0.0
+        for i in range(num_lines):
+            d = get_audio_duration(segs[i])
+            starts.append((cursor, cursor + d))
+            cursor += d
+        # Scale to the final (post-SFX) duration if segments are shorter
+        if cursor > 0 and abs(cursor - total_duration) > 0.3:
+            scale = total_duration / cursor
+            starts = [(s * scale, e * scale) for s, e in starts]
+        return starts
+    step = total_duration / max(num_lines, 1)
+    return [(i * step, (i + 1) * step) for i in range(num_lines)]
+
+def create_speaker_video(audio_path, output_dir, script_lines, episode_title, episode_number):
+    """Build the main video one clip per dialogue line, showing the speaking
+    character's image (orange cat for Speaker 1, black cat for Speaker 2).
+
+    Each clip renders its own audio slice + character image + speaker label,
+    then all clips are concatenated. Falls back to a single static video
+    (create_main_video) if anything fails.
+    """
+    print("  Building per-speaker video segments...")
+    if not script_lines:
+        return None
+    total_duration = get_audio_duration(audio_path)
+    times = get_segment_times(output_dir, len(script_lines), total_duration)
+    _ensure_font_in(output_dir)
+    fa = _font_arg()
+
+    clips = []
+    seg_out = os.path.join(output_dir, "speaker_clips")
+    os.makedirs(seg_out, exist_ok=True)
+    for i, (speaker, text) in enumerate(script_lines):
+        start, end = times[i]
+        clip_dur = max(0.5, end - start)
+        img = get_speaker_image(speaker)
+        if not img:
+            img = _get_background_fallback(output_dir)
+        if not img:
+            return None
+        img = os.path.abspath(img)
+        clip_path = os.path.join(seg_out, f"clip_{i:04d}.mp4")
+        name = _speaker_display_name(speaker)
+        color = get_speaker_color(speaker).lstrip("#")
+        vf = (
+            "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
+            f"drawbox=x=0:y=640:w=1280:h=65:color=black@0.5:t=fill,"
+            f"drawbox=x=20:y=648:w=90:h=30:color=0x{color}:t=fill,"
+            f"drawtext=text='{name}':fontcolor=white:fontsize=18{fa}:x=30:y=653"
+        )
+        cmd = [
+            FFMPEG_EXE, '-y', '-loop', '1', '-i', img,
+            '-ss', str(start), '-t', str(clip_dur), '-i', audio_path,
+            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+            '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-pix_fmt', 'yuv420p',
+            '-vf', vf, '-shortest', clip_path
+        ]
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=120, cwd=output_dir)
+            if r.returncode != 0:
+                print(f"  [speaker clip {i}] error: {r.stderr[-150:]}")
+        except Exception as e:
+            print(f"  [speaker clip {i}] failed: {e}")
+        if os.path.exists(clip_path):
+            clips.append(clip_path)
+
+    if len(clips) < len(script_lines):
+        print(f"  [WARN] Only {len(clips)}/{len(script_lines)} speaker clips built")
+
+    if not clips:
+        return None
+
+    concat_list = os.path.join(output_dir, "speaker_concat.txt")
+    with open(concat_list, 'w') as f:
+        for c in clips:
+            f.write(f"file '{os.path.abspath(c).replace(os.sep, '/')}'\n")
+    video_path = os.path.join(output_dir, "main_speaker.mp4")
+    cmd = [FFMPEG_EXE, '-y', '-f', 'concat', '-safe', '0',
+           '-i', concat_list, '-c', 'copy', video_path]
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=120, cwd=output_dir)
+    except Exception as e:
+        print(f"  speaker concat failed: {e}")
+    return video_path if os.path.exists(video_path) else None
+
 def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_number):
-    video_path = os.path.abspath(os.path.join(output_dir, "main_video.mp4"))
     audio_path = os.path.abspath(audio_path)
     bg_image = os.path.abspath(bg_image)
     _ensure_font_in(output_dir)
@@ -1251,7 +1471,7 @@ def add_subtitles(video_path, subtitle_path, output_dir):
         return video_path
     return final_path if os.path.exists(final_path) else video_path
 
-def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_number):
+def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_number, script_lines=None):
     print("[3/5] Creating video with all features...")
 
     bg = _get_background_fallback(output_dir)
@@ -1260,10 +1480,15 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
         return None
 
     duration = get_audio_duration(audio_path)
-    print(f"  Background: {os.path.basename(bg)}")
     print(f"  Duration: {duration:.0f}s")
 
-    main_video = create_main_video(audio_path, bg, output_dir, episode_title, episode_number)
+    # Prefer per-speaker image switching; fall back to single background
+    main_video = None
+    if script_lines:
+        main_video = create_speaker_video(audio_path, output_dir, script_lines, episode_title, episode_number)
+    if not main_video:
+        print(f"  Background: {os.path.basename(bg)}")
+        main_video = create_main_video(audio_path, bg, output_dir, episode_title, episode_number)
     if not main_video:
         return None
 
@@ -1661,7 +1886,7 @@ def generate_episode(specific_number=None):
     audio_path = insert_sound_effects(audio_path, script_lines, output_dir)
     subtitle_path = generate_subtitles(script_path, audio_path, output_dir)
 
-    video_path = create_video(audio_path, subtitle_path, output_dir, episode_title, ep_count)
+    video_path = create_video(audio_path, subtitle_path, output_dir, episode_title, ep_count, script_lines)
     if not video_path:
         print("\nFAILED: Video")
         return None
