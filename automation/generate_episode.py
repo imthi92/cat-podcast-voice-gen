@@ -41,10 +41,10 @@ VOICES = {
 }
 
 CHARACTERS = {
-    "Speaker 1": "Simba (Marketing, confident, silly, exaggerates stories)",
-    "Speaker 2": "Meow (Finance, smart, sarcastic, dry wit)",
-    "Imti": "Imti (IT guy, technical, always fixing things, stressed)",
-    "Zulfi": "Zulfi (HR manager, formal, corporate speak, manages people)",
+    "Speaker 1": "Simba (Hospital IT cat, confident, silly, exaggerates stories, orange tabby)",
+    "Speaker 2": "Meow (Hospital accounts/finance cat, smart, sarcastic, dry wit)",
+    "Imti": "Imti (Hospital IT cat, technical, always fixing the medical devices, stressed)",
+    "Zulfi": "Zulfi (Hospital HR cat, formal, compliance speak, manages people)",
 }
 
 # Natural speech: fillers, slang, and catchphrases per character
@@ -53,10 +53,10 @@ INTERJECTIONS = ["oh my god", "no way", "seriously?", "what?!", "exactly!", "big
 SLANG = ["lowkey", "no cap", "fr", "dead", "that's wild", "bet", "sus", "vibes", "lit", "snack", "stan", "rent free"]
 
 CATCHPHRASES = {
-    "Speaker 1": ["Trust me, I've seen this before.", "Watch this.", "Listen, I'm a genius."],
+    "Speaker 1": ["Trust me, I know this hospital's systems.", "Watch this.", "Listen, I'm an IT genius."],
     "Speaker 2": ["Anyway.", "Moving on.", "That's concerning.", "Noted.", "Cool story, bro."],
-    "Imti": ["Have you tried turning it off and on again?", "That's a server issue.", "It's always DNS."],
-    "Zulfi": ["Per the employee handbook...", "Let's circle back.", "This needs a policy.", "That's a compliance issue."],
+    "Imti": ["Did you try restarting the EMR system?", "That's a server issue.", "It's always DNS."],
+    "Zulfi": ["Per the hospital compliance handbook...", "Let's circle back.", "This needs a policy.", "That's a HIPAA issue."],
 }
 
 # Sound effects available (auto-synthesized if missing)
@@ -208,34 +208,120 @@ def get_next_episode_number():
 # ============================================================
 
 OFFICE_TOPICS = [
-    "The printer jam conspiracy theory", "Who stole my lunch from the fridge",
-    "The meeting that should have been an email", "The WiFi password changed again",
-    "The air conditioning war between departments", "The mysterious sticky notes on the desk",
-    "The new intern's first day disaster", "The coffee machine is broken again",
-    "The elevator is haunted", "The manager's motivational speech gone wrong",
-    "The office birthday party disaster", "The IT department's secret files",
-    "The parking lot drama", "The vending machine ate my money",
-    "The fire drill during lunch hour", "The mysterious email from the CEO",
-    "The office plant is dying", "The broken chair in the conference room",
-    "The Monday morning mood", "The Friday afternoon rush",
-    "The lunch break debate", "The remote work vs office war",
-    "The team building exercise disaster", "The performance review panic",
-    "The office snack monopoly", "The window seat battle",
-    "The headphone cord conspiracy", "The printer ink cartridge mystery",
-    "The thermostat wars", "The office gossip network",
-    "The calendar invite chaos", "The dress code confusion",
-    "The parking spot theft", "The lunch table politics",
-    "The meeting room booking system", "The office supply shortage",
-    "The mysterious USB drive", "The broken elevator saga",
-    "The coffee stain detective", "The office music debate",
-    "Imti's computer crashes during demo", "Zulfi's mandatory HR training session",
-    "The internet is down - blame Imti", "Zulfi sends another all-staff email",
-    "Imti's server room is overheating", "Zulfi's performance review nightmare",
-    "Imti forgot to back up the data", "Zulfi's new office policy nobody follows",
-    "Imti's cable management disaster", "Zulfi's team building exercise fails",
-    "Imti's lunch stolen from IT fridge", "Zulfi's dress code enforcement chaos",
-    "Imti's backup tapes are missing", "Zulfi's mandatory fun Friday",
-    "Imti's emergency patch at 3 AM", "Zulfi's employee satisfaction survey",
+    "The hospital billing system charged a patient for a gold-plated checkup",
+    "The accounts department keeps rejecting the cat food expense report",
+    "The patient in room 3 asked if the hospital has a cat menu",
+    "The finance department's monthly budget meeting went completely off the rails",
+    "The hospital generator failed during a power outage in the ER",
+    "The reception desk keeps sending patients to the wrong department",
+    "The vending machine in the hospital lobby ate the nurses' change",
+    "The hospital cafeteria ran out of tuna sandwiches at lunch",
+    "The new intern nurse lost the patient records cart",
+    "The accounts department posted the salaries on the bulletin board by mistake",
+    "The doctor's handwriting on the prescription is impossible to read",
+    "The hospital IT cat Imti had to restart the whole EMR system again",
+    "The pharmacy ran out of the good painkillers right before the night shift",
+    "The hospital security cat caught someone sneaking out with a wheelchair",
+    "The finance cat Meow found a mystery expense that nobody will own up to",
+    "The HR cat Zulfi scheduled mandatory wellness training during the busiest shift",
+    "The hospital's new patient paging system beeps at 3 AM for no reason",
+    "The accounts team argued about who broke the calculator",
+    "The hospital has a new mascot and it's a literal meerkat",
+    "The blood test lab mixed up the results of two very different patients",
+    "The hospital's MRI machine is haunted by a ghost, says the radiologist",
+    "The finance department audit made everyone panic about their expense claims",
+    "The hospital parking lot charges more than the actual treatment",
+    "The patient complained that the hospital food tastes like the office food",
+    "The nurse station's coffee machine is out of order again",
+    "The hospital HR cat sent a policy about not napping in the supply closet",
+    "The accounts department found an invoice for a mystery shipment of 500 kiwis",
+    "The hospital's new digital check-in kiosk is driving everyone insane",
+    "The billing department double-charged a patient for a band-aid",
+    "The hospital administrator planned a team-building day at the zoo",
+    "The finance cat tried to expense a luxury cat bed as office furniture",
+    "The hospital's emergency alarm drill happened during the lunch rush",
+    "The accounts department is doing a surprise inventory of every paperclip",
+    "The new doctor keeps prescribing naps as treatment and patients love it",
+    "The hospital gift shop is selling branded cat bandanas",
+    "The finance team discovered the hospital has been paying for a ghost subscription",
+    "The hospital's water cooler became a turf war between departments",
+    "The HR cat organized a bring-your-own-lunch day and nobody brought lunch",
+    "The hospital printer jammed right before the board meeting presentation",
+    "The accounts department lost the receipts for an entire month",
+    "The hospital's intercom keeps playing elevator music during code blues",
+    "The finance cat audited the snack cart and the results were scandalous",
+    "The hospital reception cat gave a patient directions to the wrong floor",
+    "The accounts team is fighting over who gets the good stapler",
+    "The hospital's new uniforms are unflattering and everyone is complaining",
+    "The IT cat Imti's emergency patch at 3 AM shut down the lab equipment",
+    "The HR cat scheduled a surprise fire drill during the accounts close",
+    "The hospital's cafeteria merged with the gift shop by accident",
+    "The finance department found a mystery charge for 'mystery meat'",
+    "The hospital administrator tried to make the cats the official mascots",
+    "The accounts team's calculator addiction is out of control",
+    "The hospital's air conditioning war between the wards and the admin wing",
+    "The billing department sent a patient an invoice written in meme format",
+    "The hospital's parking garage elevator is possessed",
+    "The finance cat discovered the hospital pays for 500 unused desks",
+    "The new hospital policy forbids cats from using the elevators",
+    "The accounts department celebrated its smallest budget cut with a parade",
+    "The hospital's vending machine gives free snacks after midnight",
+    "The IT cat Imti's cable management disaster in the server room",
+    "The hospital's mystery sticky note campaign is blaming the accounts team",
+    "The finance cat's expense report for 'patient research' was just cat toys",
+    "The hospital's lunch table politics between the wards and admin",
+    "The accounts department's mandatory fun Friday was a spreadsheet party",
+    "The hospital's new kiosk keeps asking patients for their cat's name",
+    "The finance team audited the vending machine and found a crime ring",
+    "The hospital administrator's motivational speech put everyone to sleep",
+    "The accounts cat counted the same box of band-aids five times",
+    "The hospital's elevator is haunted by the ghost of a fax machine",
+    "The billing department's hold music is the sound of a dying printer",
+    "The hospital's fire drill during the finance close was chaos",
+    "The finance cat's audit spreadsheet is so complex nobody dares open it",
+    "The hospital's new policy says no catnip in the break room",
+    "The accounts team's Monday morning mood is medically dangerous",
+    "The hospital's secret files are just a folder labeled 'do not open'",
+    "The finance department's coffee stain detective is on the case again",
+    "The hospital's vending machine monopoly by the snack cart gang",
+    "The accounts cat got a paper cut and made it a whole medical incident",
+    "The hospital's new HR policy nobody follows: no napping in meetings",
+    "The finance team's performance review panic about the annual budget",
+    "The hospital's gift shop started selling 'mystery expired snacks'",
+    "The accounts department's window seat battle turned into a turf war",
+    "The hospital's medical records cat keeps losing the good pen",
+    "The finance cat found a recurring charge for 'emotional support tuna'",
+    "The hospital administrator's employee satisfaction survey backfired",
+    "The accounts team's headphone conspiracy in the open-plan ward",
+    "The hospital's new badge system locks everyone out at lunch",
+    "The finance department's 'team building' was a budget-cutting contest",
+    "The hospital's emergency snack stash got raided by the night shift",
+    "The accounts cat balanced the hospital books to the penny and is now smug",
+    "The hospital's mystery USB drive found in the break room",
+    "The finance team's office supply hoarding problem is now a hazard",
+    "The hospital's thermostat war between the wards and the morgue",
+    "The accounts department's 'quiet hour' is a myth",
+    "The hospital's new robot janitor is stealing everyone's snacks",
+    "The finance cat's backup of the budget file is just a screenshot",
+    "The hospital's dress code confusion after casual Friday was banned",
+    "The accounts team found a charge for 10,000 mugs nobody ordered",
+    "The hospital's meeting room booking system double-books everything",
+    "The finance cat's emergency budget patch saved the day but made enemies",
+    "The hospital's new intern's first day disaster in the accounts department",
+    "The accounts team's secret files are just a folder of budget memes",
+    "The hospital's lunch theft ring is finally being investigated",
+    "The finance department's wellness initiative lasted exactly one day",
+    "The accounts cat's spreadsheet has 47 hidden tabs and a password",
+    "The hospital's new policy on 'cat-friendly meetings' confused everyone",
+    "The finance team's emergency audit at 3 AM caught someone napping",
+    "The hospital's mysterious email from the CEO was just an apology",
+    "The accounts department's group chat is 90 percent memes and 10 percent panic",
+    "The hospital's coffee machine conspiracy: who keeps taking the last cup",
+    "The finance cat's annual 'budget day' is treated like a disaster drill",
+    "The hospital's new printer only works when the accounts cat is near it",
+    "The accounts team's holiday party planning committee is in chaos",
+    "The hospital's mystery invoice for 'emergency kitten supplies'",
+    "The finance department's revenue report is 3 pages of cat doodles",
 ]
 
 def load_character_memory():
@@ -292,23 +378,29 @@ def _get_script_prompt(topic):
     memory_context = _get_memory_context()
     return f"""Write a natural, funny cat podcast conversation about: {topic}
 
+SETTING: The cats work at a busy HOSPITAL. The hospital has many departments:
+accounts/finance (where Meow works), HR (where Zulfi works), IT (where Imti
+works), billing, pharmacy, reception, ER, lab, nursing. Keep ALL discussion about
+hospital work, hospital life, hospital gossip, hospital departments, patients,
+medical billing, hospital admin nonsense, and workplace drama in the hospital.
+
 STYLE - This is a GOOD example of how the dialogue should sound (mimic this energy):
 Speaker 1: Okay okay, so you're never gonna believe what happened.
 Speaker 2: I always don't believe what you're about to say. That's my whole thing.
 Speaker 1: No, this time it's real. Like, actually real. Hehe.
 Speaker 2: You said that about the mouse that was just a leaf.
 Speaker 1: ...it looked like a mouse from behind, okay?! Big yikes, moving on.
-Imti: Are we talking about the thing with the printer again?
+Imti: Are we talking about the hospital's broken billing machine again?
 Speaker 1: Imti!! Perfect timing, bro. You're IT, you gotta hear this.
-Imti: I literally just fixed that printer yesterday. It's always DNS.
+Imti: I literally just fixed that billing terminal yesterday. It's always DNS.
 Speaker 2: It's never DNS.
 Imti: ...it's DNS.
 
-Characters:
-- Simba (Speaker 1): Confident, silly, works in Marketing, exaggerates stories, says "trust me bro"
-- Meow (Speaker 2): Smart, sarcastic, dry wit, says "anyway" and "that's concerning", keeps Simba honest
-- Imti: IT guy, stressed about servers, says "have you tried turning it off and on again"
-- Zulfi: HR manager, formal, says "per the employee handbook", sends too many emails
+Characters (all hospital workers):
+- Simba (Speaker 1): Confident, silly orange tabby, works in the hospital IT department, exaggerates stories, says "trust me bro"
+- Meow (Speaker 2): Smart, sarcastic, dry wit, works in hospital accounts/finance, says "anyway" and "that's concerning", keeps Simba honest
+- Imti: Hospital IT cat (Simba's IT colleague), stressed about the EMR system and medical devices, says "have you tried restarting the EMR"
+- Zulfi: Hospital HR cat, formal, says "per the hospital compliance handbook", sends too many policy emails
 
 USE THESE NATURAL SPEECH TOOLS (mix them in, don't overdo):
 - Fillers: "hmm", "oh", "um", "uh", "wait", "right?", "you know?", "like"
@@ -320,7 +412,7 @@ USE THESE NATURAL SPEECH TOOLS (mix them in, don't overdo):
 - Pauses: "..." or "--"
 
 STRUCTURE (emotional arc):
-1. OPENING HOOK (2-4 lines): someone reveals juicy gossip about the topic
+1. OPENING HOOK (2-4 lines): someone reveals juicy hospital gossip about the topic
 2. BUILD (10-15 lines): they argue about details, someone exaggerates, someone corrects
 3. CLIMAX (5-10 lines): the big reveal or dumbest decision made
 4. WRAP (3-5 lines): a laugh together, a zinger, and a quick "next time on the show"
@@ -332,7 +424,7 @@ RULES:
 - NO stage directions in brackets
 - NO "narrator" lines
 - End on a funny beat, not a summary
-- Sound like real friends chatting in an office, not a script
+- Sound like real friends chatting at the hospital, not a script
 
 {memory_context}
 
@@ -470,35 +562,35 @@ def _generate_template():
 Speaker 2: Wait, what? What happened?
 Speaker 1: It's... it's crazy. Like, seriously crazy.
 Speaker 2: You're scaring me. What happened?
-Speaker 1: So basically... okay, so you know how the office is, right?
+Speaker 1: So basically... okay, so you know how the hospital is, right?
 Speaker 2: Yeah...?
 Speaker 1: Well, apparently... someone... um... someone did something.
 Speaker 2: Someone did something. That's very specific.
 Speaker 1: I'm getting there! Don't rush me!
 Speaker 2: You literally just said "oh my god" and now you're stalling.
 Imti: Hey guys, what's going on?
-Speaker 1: Imti! Perfect timing! Did you fix the printer yet?
-Imti: The printer? Again? What happened this time?
+Speaker 1: Imti! Perfect timing! Did you fix the billing terminal yet?
+Imti: The billing machine? Again? What happened this time?
 Speaker 2: Simba was telling me about the {topic.lower()}.
 Imti: Oh, that. Yeah, I saw the email. Not my problem though.
 Speaker 1: Not your problem? You're IT!
-Imti: I fix computers, not office drama. Besides, I'm busy with the server.
+Imti: I fix the EMR system, not hospital drama. Besides, I'm busy with the server.
 Speaker 2: The server? What's wrong with it?
 Imti: Nothing... yet. But it's making weird noises.
 Speaker 1: Ghost noises?
-Imti: No, not ghost noises. Fan noises. Probably.
+Imti: No, not ghost noises. Hum noises. Probably.
 Speaker 2: Probably?
-Imti: Look, I'll check it later. Right now I need coffee.
+Imti: Look, I'll check it later. Right now I need coffee from the cafeteria.
 Speaker 1: Coffee! Great idea! Let's all get coffee!
 Speaker 2: We're literally in the middle of recording.
 Speaker 1: Oh. Right. Hehe. Hehe.""",
         f"""Speaker 1: So anyway, about the {topic.lower()}...
 Speaker 2: Wait, Zulfi's coming.
-Zulfi: Good morning everyone. I hope you're all having a productive day.
+Zulfi: Good morning everyone. I hope you're all having a productive shift.
 Speaker 1: Hey Zulfi! What's up?
-Zulfi: I need to discuss the new office policy regarding {topic.lower()}.
+Zulfi: I need to discuss the new hospital policy regarding {topic.lower()}.
 Speaker 2: There's a policy for that?
-Zulfi: There's a policy for everything, Meow. Page 47, section 3, paragraph 2.
+Zulfi: There's a policy for everything, Meow. Page 47, section 3, paragraph 2 of the hospital compliance handbook.
 Speaker 1: You memorized the policy manual?
 Zulfi: Of course. It's my job. Now, as I was saying...
 Speaker 2: Can we just skip to the part where we ignore it?
@@ -506,25 +598,25 @@ Zulfi: That's... not how policies work.
 Speaker 1: Yeah Meow, we have to follow the rules!
 Speaker 2: You never follow rules.
 Speaker 1: I follow Simba's rules. Which are different.
-Zulfi: There are no "Simba's rules" in the employee handbook.
+Zulfi: There are no "Simba's rules" in the hospital handbook.
 Speaker 1: There should be! Rule number one: Simba is always right.
 Zulfi: That's... actually concerning.
 Speaker 2: Welcome to my world.
 Speaker 1: Okay okay, fine. What's the actual policy, Zulfi?
 Zulfi: Well, according to section 3, paragraph 2...
-Speaker 1: Oh wait, I forgot something. Be right back.
+Speaker 1: Oh wait, I have to check on a patient's chart. Be right back.
 Zulfi: ...He's gone. He always does this.
 Speaker 2: I know.""",
         f"""Speaker 2: Finally, some peace and quiet.
 Imti: Hey Meow, where's Simba?
 Speaker 2: Hopefully far away. He was driving me crazy.
-Zulfi: Has anyone seen Simba? I need his expense report.
-Speaker 2: He said something about the printer and disappeared.
+Zulfi: Has anyone seen Simba? I need his expense report for the department.
+Speaker 2: He said something about the printer in the billing office and disappeared.
 Imti: The printer? I just fixed that yesterday.
 Speaker 2: Exactly.
 Zulfi: Well, when you see him, tell him the report is due by 5 PM.
 Imti: Yeah, good luck with that.
-Speaker 2: So Imti, what's really wrong with the server?
+Speaker 2: So Imti, what's really wrong with the hospital server?
 Imti: Nothing's wrong... yet. But it's making noises.
 Zulfi: What kind of noises?
 Imti: Like... hum noises. And occasionally a click.
@@ -535,35 +627,67 @@ Speaker 2: More emails about policies nobody reads?
 Zulfi: People read them! They just... choose not to follow them.
 Imti: I read them. Then I ignore them. Different from not reading.
 Speaker 2: That's... actually worse.
-Imti: Hey, I'm IT. I fix things. I don't follow HR rules.
+Imti: Hey, I'm IT. I fix the medical devices. I don't follow HR rules.
 Zulfi: That's going in my report.
-Imti: Which report? The one nobody reads?""",
+Imti: Which report? The one the hospital board never reads?""",
         f"""Speaker 2: Okay, real talk. Who here has actually seen the {topic.lower()}?
 Speaker 1: Oh! Oh! I have a story. I have SUCH a story.
 Speaker 2: It's been 4 seconds and you're already exhausting me.
-Speaker 1: No cap, this is the wildest thing that's happened all month.
-Imti: If this is about the mouse again—
+Speaker 1: No cap, this is the wildest thing that's happened at the hospital all month.
+Imti: If this is about the mouse in the lab again—
 Speaker 1: IT WAS A LEAF, AND WE MOVED ON.
 Speaker 2: Anyway. Please continue, Simba.
-Speaker 1: So I'm walking to the kitchen, right? Lowkey vibes, just getting a snack.
+Speaker 1: So I'm walking to the hospital cafeteria, right? Lowkey vibes, just getting a snack.
 Speaker 2: And?
-Speaker 1: And I hear the weirdest noise. Like... buh-dup. Buh-dup.
-Imti: That's the printer. It does that when it's dying. It's fine. Probably.
-Speaker 1: It's not fine, Imti! The paper came out and it had like... a face on it?!
+Speaker 1: And I hear the weirdest noise. Like... beep-dup. Beep-dup.
+Imti: That's the patient paging system. It does that when it's dying. It's fine. Probably.
+Speaker 1: It's not fine, Imti! The printout came out and it had like... a face on it?!
 Speaker 2: A face? Like an actual face?
 Speaker 1: Like, a potato face. Blobby. Deeply cursed.
-Speaker 2: So you're telling me the printer is haunted.
+Speaker 2: So you're telling me the billing system is haunted.
 Speaker 1: I'm telling you it's haunted, bro. Big yikes energy.
 Imti: I can literally hear the ghost. It's the toner drum. It needs replacing.
 Speaker 1: OR. And hear me out. We name it. Gary.
 Speaker 2: We're not naming the haunted printer Gary.
 Speaker 1: Too late. I already put a sticky note on it that says Gary.
 Imti: Oh my god. You know what, sure. Gary's fine. He can keep making the noise.
-Speaker 2: This is how we end up on a company-wide email.
+Speaker 2: This is how we end up on a hospital-wide email.
 Speaker 1: Zulfi's gonna send a policy about haunted printer etiquette.
-Speaker 2: He already has one. Page 63. It says "per the employee handbook, paranormal activity should be reported to HR."
+Speaker 2: He already has one. Page 63. It says "per the hospital compliance handbook, paranormal activity should be reported to HR."
 Speaker 1: Wait, seriously?!
 Speaker 2: No. But I'm gonna add it now. That's content.""",
+        f"""Speaker 1: Okay okay, so the accounts department had a meeting today.
+Speaker 2: The monthly budget meeting? The one that's usually a disaster.
+Speaker 1: It was more than a disaster. Meow, they found a charge for 500 tuna sandwiches.
+Speaker 2: Nobody has expensed tuna sandwiches.
+Speaker 1: Apparently someone did. And the invoice says they were delivered to the ICU.
+Speaker 2: The ICU? Tuna sandwiches?
+Speaker 1: The nurse says she never saw them. The accounts cat says they were signed for.
+Speaker 2: Signed by whom?
+Speaker 1: By... a doctor whose name translates to 'ghost cat'.
+Speaker 2: This is why the hospital audit is a year behind.
+Speaker 1: Also, Meow, they kept arguing about the calculator.
+Speaker 2: The calculator that only works if you smack it?
+Speaker 1: Yes! That very calculator. It became a whole investigation.
+Speaker 2: The whole department fought over a broken calculator?
+Speaker 1: Three meetings. Two crying cats. One tears-stained spreadsheet.
+Speaker 2: I genuinely can't work here anymore.
+Speaker 1: You can't leave, Meow. You still owe 47 cents from the vending machine.""",
+        f"""Speaker 1: This hospital is insane. Want to hear what the front desk did today?
+Speaker 2: This should be good.
+Speaker 1: They sent a patient to the lab. For a haircut.
+Speaker 2: A haircut? The LAB?
+Speaker 1: The lab. The reception cat said 'go to the lab on floor 2.' Patient ended up with a blood draw and a crying fit.
+Speaker 2: And the cafeteria served fish that no one ordered.
+Speaker 1: Wait, really?
+Speaker 2: Yeah, the billing department now owes money for 40 mystery fish fillets.
+Speaker 1: Fish fillets at a cat hospital. Come on.
+Speaker 2: This is exactly why the hospital board wants to move us to a clinic.
+Speaker 1: A clinic? Who would miss this chaos?
+Speaker 2: Apparently nobody. That's the problem.
+Speaker 1: Well, at least the vending machine gives free snacks after midnight.
+Speaker 2: That's a rumor you started.
+Speaker 1: And it's a good one. It's content, Meow. Content.""",
     ]
     script = random.choice(templates)
     print(f"  [Template] Generated about: {topic}")
@@ -917,15 +1041,21 @@ def _tts_edge(segments_dir, lines):
     async def gen_segment(i, speaker, text, seg_path):
         voice = VOICES[speaker]
         spoken = naturalize_text(text, i, len(lines))
-        rate = "+0%"
+        # Base pace slightly brisk so the conversation feels alive, but not
+        # rushed. Per-speaker/per-line tweaks keep it natural.
+        rate = "+8%"
         if text.startswith("..."):
-            rate = "-10%"
+            rate = "-2%"
         elif "!" in text and len(text) < 20:
-            rate = "+5%"
+            rate = "+15%"
+        elif speaker == "Simba" or speaker == "Speaker 1":
+            rate = "+10%"
+        elif speaker == "Meow" or speaker == "Speaker 2":
+            rate = "+8%"
         elif speaker == "Imti":
-            rate = "+3%"
+            rate = "+12%"
         elif speaker == "Zulfi":
-            rate = "-3%"
+            rate = "+4%"
         c = edge_tts.Communicate(spoken, voice, rate=rate)
         await c.save(seg_path)
 
@@ -1212,7 +1342,7 @@ def create_intro_screen(output_dir, episode_title, episode_number):
             f"drawtext=text='Meow':fontcolor=#4a9eff:fontsize=30{fa}:x=400:y=400,"
             f"drawtext=text='Imti':fontcolor=#00ff88:fontsize=30{fa}:x=600:y=400,"
             f"drawtext=text='Zulfi':fontcolor=#ff44ff:fontsize=30{fa}:x=800:y=400,"
-            f"drawtext=text='Office Gossip Podcast':fontcolor=#aaaaaa:fontsize=24{fa}:"
+            f"drawtext=text='Hospital Gossip Podcast':fontcolor=#aaaaaa:fontsize=24{fa}:"
             "x=(w-text_w)/2:y=500"
         ),
         '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '44100', '-t', '4', intro_path
@@ -1611,20 +1741,20 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None,
 
 ---
 About The Simba Show:
-Four cats, Simba, Meow, Imti, and Zulfi, discuss office gossip in a hilarious podcast format.
+Four cats, Simba, Meow, Imti, and Zulfi, work at a busy hospital and discuss hospital gossip in a hilarious podcast format.
 New episodes daily!
 
 Characters:
-- Simba: Confident, works in Marketing, tells exaggerated stories
-- Meow: Smart, sarcastic, works in Finance, keeps Simba in check
-- Imti: IT guy, always fixing things, speaks geek
-- Zulfi: HR manager, formal, sends too many emails
+- Simba: Confident orange tabby, works in Hospital IT, tells exaggerated stories
+- Meow: Smart, sarcastic, works in Hospital Accounts/Finance, keeps Simba in check
+- Imti: Hospital IT cat, always fixing the EMR system, speaks geek
+- Zulfi: Hospital HR cat, formal, sends too many policy emails
 
 ---
 Subscribe: https://youtube.com/@thesimbashowss
 ---
 
-#CatPodcast #SimbaAndMeow #FunnyCats #OfficeHumor #TheSimbaShow #CatComedy #Podcast #Shorts #OfficeLife #CatComedy"""
+#CatPodcast #SimbaAndMeow #FunnyCats #HospitalHumor #TheSimbaShow #CatComedy #Podcast #Shorts #HospitalLife #CatComedy"""
 
     body = {
         "snippet": {
@@ -1834,7 +1964,7 @@ def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_
     clip_duration = min(25, duration - start_time)
     if get_audio_segment(audio_path, start_time, clip_duration, short2_audio):
         mid_idx = len(lines) // 2
-        mid_line = lines[mid_idx].split(":", 1)[1].strip() if mid_idx < len(lines) else "Office gossip"
+        mid_line = lines[mid_idx].split(":", 1)[1].strip() if mid_idx < len(lines) else "Hospital gossip"
         short2_video = create_short_video(short2_audio, bg_image, short2_dir, f"EP {episode_number:02d} - Best Moment", mid_line)
         if short2_video:
             title = f"The Simba Show - {episode_title} (Short 2)"
@@ -1899,13 +2029,13 @@ def generate_episode(specific_number=None):
     if bg_image:
         short_results = generate_shorts(audio_path, script_path, output_dir, episode_title, ep_count, bg_image)
 
-    description = f"""Simba and Meow discuss office gossip in this hilarious cat podcast!"""
+    description = f"""Simba and Meow discuss hospital gossip in this hilarious cat podcast!"""
     tags = [
-        "cat podcast", "funny cats", "office cats", "cat comedy",
+        "cat podcast", "funny cats", "hospital cats", "cat comedy",
         "simba and meow", "cat dialogue", "funny cat videos",
-        "cat humor", "office humor", "the simba show", "office gossip",
+        "cat humor", "hospital humor", "the simba show", "hospital gossip",
         "cat talk", "podcast", "daily podcast", "funny animals",
-        "cat entertainment", "workplace comedy", "cat show"
+        "cat entertainment", "hospital comedy", "cat show"
     ]
 
     upload_result = upload_to_youtube(video_path, episode_title, description, tags, thumbnail_path, episode_number=ep_count)
