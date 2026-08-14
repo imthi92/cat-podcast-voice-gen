@@ -1,9 +1,12 @@
 {
-  "episodes_done": 2,
-  "running_jokes": [],
+  "episodes_done": 3,
+  "running_jokes": [
+    "The cats still bring up: 'Meow i need to tell you something. i have a crush' from a few episodes ago"
+  ],
   "past_topics": [
     "Welcome to \"the simba show\"! i'm simba the smartest cat in t",
-    "Welcome back to the simba show. today i'm going to tell you "
+    "Welcome back to the simba show. today i'm going to tell you ",
+    "Meow i need to tell you something. i have a crush"
   ],
   "relationships": {
     "Simba_Meow": "Friendly rivals, Meow always corrects Simba's stories",
