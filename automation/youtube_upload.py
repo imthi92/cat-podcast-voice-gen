@@ -28,7 +28,9 @@ except ImportError:
 # CONFIGURATION
 # ============================================================
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+# FIX: Use the full 'youtube' scope instead of 'youtube.upload' 
+# so we can manage playlists and playlist items.
+SCOPES = ["https://www.googleapis.com/auth/youtube"]
 CLIENT_SECRETS_FILE = "client_secret.json"  # Download from Google Cloud Console
 TOKEN_FILE = "youtube_token.pickle"
 
@@ -72,11 +74,22 @@ def get_youtube_service():
         return None
 
     credentials = None
+    REQUIRED_SCOPES = set(SCOPES)
 
     # Check for saved token
     if os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, 'rb') as token:
             credentials = pickle.load(token)
+
+    # FIX: Force re-authentication if the existing token doesn't have the required scopes
+    token_scopes = set(getattr(credentials, 'scopes', []) or [])
+    if credentials and not REQUIRED_SCOPES.issubset(token_scopes):
+        print("⚠️  Token scopes insufficient for playlist management. Re-authenticating...")
+        credentials = None
+        try:
+            os.remove(TOKEN_FILE)
+        except OSError:
+            pass
 
     # Refresh or get new credentials
     if not credentials or not credentials.valid:
@@ -214,7 +227,7 @@ def upload_video(
 
     # Add to playlist
     if playlist_id:
-        print("\n  Adding to playlist...")
+        print(f"\n  Adding to playlist ({playlist_id})...")
         try:
             youtube.playlistItems().insert(
                 part="snippet",
@@ -290,7 +303,8 @@ def generate_tags_from_title(title):
 # MAIN FUNCTION
 # ============================================================
 
-def upload_episode(video_path, episode_title, episode_number=None, thumbnail_path=None, publish=True):
+# FIX: Added playlist_id parameter so it gets forwarded to upload_video
+def upload_episode(video_path, episode_title, episode_number=None, thumbnail_path=None, publish=True, playlist_id=None):
     """Upload a complete episode to YouTube."""
     # Generate metadata
     description = generate_description(episode_title, episode_number)
@@ -305,6 +319,7 @@ def upload_episode(video_path, episode_title, episode_number=None, thumbnail_pat
         tags=tags,
         privacy_status=privacy,
         thumbnail_path=thumbnail_path,
+        playlist_id=playlist_id,
     )
 
     # Save upload record
@@ -323,12 +338,13 @@ def upload_episode(video_path, episode_title, episode_number=None, thumbnail_pat
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python youtube_upload.py <video.mp4> <episode title> [thumbnail.png]")
-        print("Example: python youtube_upload.py output/final.mp4 'Why Humans Work So Much' output/thumbnail.png")
+        print("Usage: python youtube_upload.py <video.mp4> <episode title> [thumbnail.png] [playlist_id]")
+        print("Example: python youtube_upload.py output/final.mp4 'Why Humans Work So Much' output/thumbnail.png PLxxxxxx")
         sys.exit(1)
 
     video = sys.argv[1]
     title = sys.argv[2]
     thumb = sys.argv[3] if len(sys.argv) > 3 else None
+    pl_id = sys.argv[4] if len(sys.argv) > 4 else None
 
-    upload_episode(video, title, thumbnail_path=thumb)
+    upload_episode(video, title, thumbnail_path=thumb, playlist_id=pl_id)
