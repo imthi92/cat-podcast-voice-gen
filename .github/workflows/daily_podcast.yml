@@ -2,7 +2,7 @@ name: Daily Cat Podcast (1 Video + 2 Shorts)
 
 on:
   schedule:
-    - cron: '0 10 * * *'
+    - cron: '0 10 * * *'  # Daily at 10 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -59,3 +59,13 @@ jobs:
           git add automation/episode_counter.json automation/processed_episodes.json automation/character_memory.json scripts/episode_ai_*.txt 2>/dev/null || true
           git diff --cached --quiet || git commit -m "Auto: update podcast state (run ${{ github.run_number }})"
           git push
+
+      # === DEEPNOTE TRIGGER (runs AFTER GitHub episode is done) ===
+      - name: Trigger Deepnote pipeline
+        if: ${{ secrets.DEEPNOTE_WEBHOOK_URL != '' }}
+        run: |
+          curl -X POST "${{ secrets.DEEPNOTE_WEBHOOK_URL }}/trigger" \
+            -H "X-Webhook-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger": "github", "run": "${{ github.run_number }}"}' \
+            --max-time 10 || echo "Deepnote trigger failed (server may be off)"

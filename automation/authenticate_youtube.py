@@ -10,8 +10,9 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-CLIENT_SECRETS_FILE = "client_secret.json"
-TOKEN_FILE = "youtube_token.pickle"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CLIENT_SECRETS_FILE = os.path.join(SCRIPT_DIR, "client_secret.json")
+TOKEN_FILE = os.path.join(SCRIPT_DIR, "youtube_token.pickle")
 
 def authenticate():
     print("=" * 50)

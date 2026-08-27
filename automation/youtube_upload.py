@@ -31,8 +31,9 @@ except ImportError:
 # FIX: Use the full 'youtube' scope instead of 'youtube.upload' 
 # so we can manage playlists and playlist items.
 SCOPES = ["https://www.googleapis.com/auth/youtube"]
-CLIENT_SECRETS_FILE = "client_secret.json"  # Download from Google Cloud Console
-TOKEN_FILE = "youtube_token.pickle"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CLIENT_SECRETS_FILE = os.path.join(SCRIPT_DIR, "client_secret.json")
+TOKEN_FILE = os.path.join(SCRIPT_DIR, "youtube_token.pickle")
 
 # Default upload settings
 DEFAULT_CONFIG = {
