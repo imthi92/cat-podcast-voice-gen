@@ -1415,8 +1415,13 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None,
         print("  No token file")
         return None
 
-    with open(TOKEN_FILE, 'rb') as f:
-        creds = pickle.load(f)
+    try:
+        with open(TOKEN_FILE, 'rb') as f:
+            creds = pickle.load(f)
+    except (ModuleNotFoundError, AttributeError) as e:
+        print(f"  [WARN] Token incompatible: {e}")
+        print("  [WARN] Re-authenticate on this machine: python authenticate_youtube.py")
+        return None
 
     # FIX: Check token scopes to prevent silent 403 failures on playlists
     token_scopes = getattr(creds, 'scopes', []) or []
@@ -1597,8 +1602,13 @@ def upload_short(video_path, title, description, tags, thumbnail_path=None):
         return None
     if not os.path.exists(TOKEN_FILE):
         return None
-    with open(TOKEN_FILE, 'rb') as f:
-        creds = pickle.load(f)
+    try:
+        with open(TOKEN_FILE, 'rb') as f:
+            creds = pickle.load(f)
+    except (ModuleNotFoundError, AttributeError) as e:
+        print(f"  [WARN] Token incompatible: {e}")
+        print("  [WARN] Re-authenticate on this machine: python authenticate_youtube.py")
+        return None
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())

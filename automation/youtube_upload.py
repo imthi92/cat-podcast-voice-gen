@@ -79,8 +79,13 @@ def get_youtube_service():
 
     # Check for saved token
     if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, 'rb') as token:
-            credentials = pickle.load(token)
+        try:
+            with open(TOKEN_FILE, 'rb') as token:
+                credentials = pickle.load(token)
+        except (ModuleNotFoundError, AttributeError) as e:
+            print(f"[WARN] Token incompatible: {e}")
+            print("[WARN] Re-authenticate: python authenticate_youtube.py")
+            credentials = None
 
     # FIX: Force re-authentication if the existing token doesn't have the required scopes
     token_scopes = set(getattr(credentials, 'scopes', []) or [])
