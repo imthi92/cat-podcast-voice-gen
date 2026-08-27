@@ -51,6 +51,14 @@ else
     echo "  [FAIL] Audio generation failed"
 fi
 
+# 7. Verify Groq
+echo "[7/7] Verifying Groq..."
+if python3 -c "import groq" 2>/dev/null; then
+    echo "  [OK] Groq ready (set GROQ_API_KEY env var)"
+else
+    echo "  [FAIL] Groq not installed"
+fi
+
 echo ""
 echo "============================================"
 echo "  SETUP COMPLETE"
@@ -64,6 +72,7 @@ echo "  Generate + upload: python automation/generate_episode.py --publish"
 echo "  Batch 5 episodes:  python automation/generate_episode.py --batch 5"
 echo ""
 echo "Fallback chain:"
+echo "  Script: Groq (Llama 3.3) -> HuggingFace -> Template"
 echo "  Audio: Colab XTTS -> Edge TTS -> gTTS"
 echo "  Video: SadTalker -> DAWN -> FFmpeg Ken Burns"
 echo "  Subs:  Whisper -> faster-whisper -> whisper.cpp"

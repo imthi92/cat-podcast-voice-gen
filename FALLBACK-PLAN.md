@@ -5,6 +5,18 @@
 
 ---
 
+## Script Generation
+
+| Priority | Tool | Where | Quality | Cost |
+|---|---|---|---|---|
+| **1** | Groq (Llama 3.3) | API | Excellent | Free (generous) |
+| **2** | HuggingFace models | API | Good | Free |
+| **3** | Template scripts | Local | Good | Free |
+
+**Note:** Groq replaced Gemini (Gemini charges after free tier, Groq is truly free).
+
+---
+
 ## Audio Generation
 
 | Priority | Tool | Where | Quality | GPU |

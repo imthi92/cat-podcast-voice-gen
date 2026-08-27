@@ -15,3 +15,4 @@ moviepy
 flask
 pyngrok
 openai-whisper
+groq

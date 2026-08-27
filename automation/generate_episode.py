@@ -497,33 +497,39 @@ def _generate_hf():
 
     raise Exception(last_err or "All HF models failed")
 
-def _generate_gemini():
+def _generate_groq():
     import requests
-    api_key = os.environ.get("GEMINI_API_KEY", os.environ.get("GOOGLE_API_KEY", ""))
+    api_key = os.environ.get("GROQ_API_KEY", "")
     if not api_key:
-        raise Exception("No GEMINI_API_KEY set")
+        raise Exception("No GROQ_API_KEY set")
 
     topic = _pick_unique_topic()
-    print(f"  [Gemini] Generating script about: {topic}")
+    print(f"  [Groq] Generating script about: {topic}")
     prompt = _get_script_prompt(topic) + "\n\nWrite ONLY the dialogue, no extra text."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-    response = requests.post(url, json={
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.95, "maxOutputTokens": 1500}
-    }, timeout=60)
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    response = requests.post(url, 
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": "llama-3.3-70b-versatile",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.95,
+            "max_tokens": 1500
+        }, 
+        timeout=30  # 30 second timeout, not 120 minutes
+    )
 
     if response.status_code != 200:
-        raise Exception(f"Gemini API error {response.status_code}: {response.text[:200]}")
+        raise Exception(f"Groq API error {response.status_code}: {response.text[:200]}")
 
     data = response.json()
-    script = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+    script = data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
     lines = _parse_ai_script(script)
     if len(lines) < 10:
         raise Exception(f"Script too short ({len(lines)} lines)")
 
-    print(f"  [Gemini] Generated {len(lines)} lines")
+    print(f"  [Groq] Generated {len(lines)} lines")
     return _save_script(lines, topic)
 
 def _generate_template():
@@ -615,10 +621,10 @@ def generate_script_with_ai():
         print(f"  [SKIP] HF failed: {e}")
 
     try:
-        result = _generate_gemini()
+        result = _generate_groq()
         if result: return result
     except Exception as e:
-        print(f"  [SKIP] Gemini failed: {e}")
+        print(f"  [SKIP] Groq failed: {e}")
 
     print("  [OK] Using template (all APIs unavailable)")
     return _generate_template()
@@ -1696,7 +1702,7 @@ def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_
 def generate_episode(specific_number=None):
     print("=" * 60)
     print("CAT PODCAST - EPISODE GENERATOR v5")
-    print("Fallback chains: HF->Gemini->Template | Edge->gTTS->pyttsx3")
+    print("Fallback chains: HF->Groq->Template | Edge->gTTS->pyttsx3")
     print("=" * 60)
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
