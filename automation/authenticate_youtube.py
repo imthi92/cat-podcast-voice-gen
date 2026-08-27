@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Run this ONCE to authenticate with YouTube.
-After this, token is saved and future uploads work automatically.
+YouTube Authentication — works on headless servers (Deepnote) and local machines.
+Run this ONCE. After that, token is saved and uploads work automatically.
 """
 
 import os
+import sys
 import pickle
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -24,23 +25,43 @@ def authenticate():
         print("Download it from Google Cloud Console and place in this folder.")
         return False
 
-    print("\n1. Opening browser for Google sign-in...")
-    print("2. Sign in with your Google account")
-    print("3. Click 'Allow' to grant YouTube upload permission")
-    print("4. Browser will show 'Authentication successful'")
-    print("5. Come back to this terminal\n")
-
     flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
-    credentials = flow.run_local_server(port=8080)
+
+    # Try local server first (works on machines with browser)
+    try:
+        print("\nTrying local browser authentication...")
+        credentials = flow.run_local_server(port=8080)
+    except Exception:
+        # Headless mode (Deepnote, SSH, etc.)
+        print("\nNo browser detected — using manual URL mode.")
+        print("-" * 50)
+
+        auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
+
+        print("\n1. OPEN this URL in your laptop browser:")
+        print(f"\n   {auth_url}\n")
+        print("2. Sign in with mohammedimthiyaz832@gmail.com")
+        print("3. Click 'Allow'")
+        print("4. Copy the AUTHORIZATION CODE from the browser")
+        print("5. Paste it below and press Enter")
+        print("-" * 50)
+
+        auth_code = input("\nAuth code: ").strip()
+        if not auth_code:
+            print("ERROR: No code provided.")
+            return False
+
+        flow.fetch_token(code=auth_code)
+        credentials = flow.credentials
 
     # Save token
     with open(TOKEN_FILE, 'wb') as token:
         pickle.dump(credentials, token)
 
-    print("=" * 50)
+    print("\n" + "=" * 50)
     print("AUTHENTICATION SUCCESSFUL!")
     print(f"Token saved to: {TOKEN_FILE}")
-    print("You can now upload videos to YouTube.")
+    print("YouTube uploads will now work automatically.")
     print("=" * 50)
 
     return True
