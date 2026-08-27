@@ -6,3 +6,12 @@ google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
+faster-whisper
+Pillow
+pydub
+numpy
+scipy
+moviepy
+flask
+pyngrok
+openai-whisper
