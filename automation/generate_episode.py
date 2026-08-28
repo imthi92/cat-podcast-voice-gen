@@ -1071,7 +1071,11 @@ def _get_background_fallback(output_dir):
     try:
         import requests
         os.makedirs(IMAGES_DIR, exist_ok=True)
-        url = f"https://image.pollinations.ai/prompt/cartoon%20cat%20podcast%20studio%20with%20microphones?width=1280&height=720&nologo=true"
+        # NOTE: AI image models often bake fake gibberish text/URLs into
+        # "studio" scenes. Explicitly forbid text, words, letters, signage and
+        # logos so the background doesn't show URL-like artifacts in the video.
+        prompt = "cartoon cat podcast studio with microphones, plain walls, soft colors, no text, no words, no letters, no signage, no logos, no URLs"
+        url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1280&height=720&nologo=true&model=flux"
         resp = requests.get(url, timeout=30, allow_redirects=True)
         if resp.status_code == 200:
             img_path = os.path.join(IMAGES_DIR, f"gen_{hashlib.md5(resp.content).hexdigest()[:8]}.jpg")
@@ -1213,8 +1217,14 @@ def create_speaker_video(audio_path, output_dir, script_lines, episode_title, ep
         clip_path = os.path.join(seg_out, f"clip_{i:04d}.mp4")
         name = _speaker_display_name(speaker)
         color = get_speaker_color(speaker).lstrip("#")
+        # Blur the image and overlay a sharp centered copy so any AI-generated
+        # fake text/URLs baked into the background become unreadable, while the
+        # subject (cat) stays crisp.
         vf = (
-            "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
+            "split=2[a][b];"
+            "[a]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,boxblur=12[bg];"
+            "[b]scale=900:-1[fg];"
+            "[bg][fg]overlay=(W-w)/2:(H-h)/2,"
             f"drawbox=x=0:y=640:w=1280:h=65:color=black@0.5:t=fill,"
             f"drawbox=x=20:y=648:w=90:h=30:color=0x{color}:t=fill,"
             f"drawtext=text='{name}':fontcolor=white:fontsize=18{fa}:x=30:y=653"
@@ -1258,7 +1268,7 @@ def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_n
     fa = _font_arg()
     video_path = os.path.join(output_dir, "main_video.mp4")
     vf = (
-        "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
+        "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,boxblur=8,"
         "drawbox=x=0:y=620:w=1280:h=100:color=black@0.6:t=fill,"
         "drawbox=x=20:y=640:w=80:h=25:color=#ff6b35:t=fill,"
         f"drawtext=text='Simba':fontcolor=white:fontsize=14{fa}:x=25:y=645,"
@@ -1615,12 +1625,10 @@ def create_short_video(audio_path, bg_image, output_dir, title, subtitle_text):
     # Escape text for FFmpeg drawtext
     safe_text = subtitle_text.replace("'", "\\'").replace(":", "\\:").replace("%", "\\%")
     
-    # 9:16 vertical format with blurred background + centered foreground + text overlay
+    # 9:16 vertical format: fully blurred backdrop so any AI-generated fake
+    # text/URLs in the source image are unreadable, plus a centered caption.
     vf = (
-        "split=2[a][b];"
-        "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20[bg];"
-        f"[b]scale=1080:-1[fg];"
-        "[bg][fg]overlay=(W-w)/2:(H-h)/2,"
+        "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20,"
         f"drawtext=text='{safe_text}':fontcolor=white:fontsize=40{fa}:x=(w-text_w)/2:y=(h/2)+300:box=1:boxcolor=black@0.5:boxborderw=10"
     )
     
