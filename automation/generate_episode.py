@@ -1585,7 +1585,9 @@ def get_or_create_playlist(youtube, playlist_name):
         response = request.execute()
         return response["id"]
     except Exception as e:
-        print(f"  Playlist error: {e}")
+        # Non-fatal: video is already public. Usually a 403 because the token
+        # lacks the full 'youtube' scope (re-run authenticate_youtube.py to fix).
+        print(f"  Playlist skipped (scope/permission): {e}")
         return None
 
 # ============================================================

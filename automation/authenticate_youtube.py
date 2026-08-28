@@ -10,7 +10,10 @@ import pickle
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+# Full 'youtube' scope is required so the token can also manage playlists
+# (the uploader adds episodes to "The Simba Show" playlist). Using only
+# 'youtube.upload' causes a 403 on playlist operations.
+SCOPES = ["https://www.googleapis.com/auth/youtube"]
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIENT_SECRETS_FILE = os.path.join(SCRIPT_DIR, "client_secret.json")
 TOKEN_FILE = os.path.join(SCRIPT_DIR, "youtube_token.pickle")

@@ -19,3 +19,10 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local test/log artifacts
+run_log.txt
+run_err.txt
+webhook_log.txt
+automation/webhook_log.txt
+*.log
