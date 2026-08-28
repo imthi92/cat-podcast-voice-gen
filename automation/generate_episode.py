@@ -8,6 +8,7 @@ If method 1 fails -> method 2 -> method 3 -> etc.
 import os
 import sys
 import json
+import re
 import subprocess
 import asyncio
 import glob
@@ -39,6 +40,35 @@ VOICES = {
     "Imti": "en-US-ChristopherNeural",
     "Zulfi": "en-US-ChristopherNeural",
 }
+
+# NATURAL_MODE: when enabled, TTS injects real pauses (from "..." / "--") and
+# per-speaker prosody via SSML so the podcast sounds like a real conversation
+# instead of someone reading a script. Disable with:  NATURAL_MODE=0 python ...
+NATURAL_MODE = os.environ.get("NATURAL_MODE", "1") != "0"
+
+# Per-speaker pitch tweak (SSML) to give each cat a distinct, lively voice.
+_NATURAL_PITCH = {
+    "Speaker 1": "+5%",   # Simba - upbeat, energetic
+    "Speaker 2": "-2%",   # Meow  - dry, calm
+    "Imti":      "+1%",   # Imti - slightly strained
+    "Zulfi":     "-1%",   # Zulfi - formal, flat
+}
+
+def _build_ssml(speaker, text, rate):
+    """Wrap spoken text in SSML with real pauses and per-speaker prosody."""
+    voice = VOICES.get(speaker, "en-US-JennyNeural")
+    pitch = _NATURAL_PITCH.get(speaker, "0%")
+    t = text
+    # Convert written pauses into actual audible breaks
+    t = t.replace("...", '<break time="600ms"/>')
+    t = t.replace("--", '<break time="300ms"/>')
+    # Small breath/pause after sentence-ending punctuation
+    t = re.sub(r'([.!?])\s', r'\1<break time="200ms"/>', t)
+    return (
+        '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
+        f'xml:lang="en-US"><voice name="{voice}">'
+        f'<prosody rate="{rate}" pitch="{pitch}">{t}</prosody></voice></speak>'
+    )
 
 CHARACTERS = {
     "Speaker 1": "Simba (Hospital IT cat, confident, silly, exaggerates stories, orange tabby)",
@@ -852,7 +882,12 @@ def _tts_edge(segments_dir, lines):
         elif speaker == "Meow" or speaker == "Speaker 2": rate = "+8%"
         elif speaker == "Imti": rate = "+12%"
         elif speaker == "Zulfi": rate = "+4%"
-        c = edge_tts.Communicate(spoken, voice, rate=rate)
+        if NATURAL_MODE:
+            # SSML already embeds voice + rate + pitch + pauses
+            ssml = _build_ssml(speaker, spoken, rate)
+            c = edge_tts.Communicate(ssml)
+        else:
+            c = edge_tts.Communicate(spoken, voice, rate=rate)
         await c.save(seg_path)
 
     async def gen_all():
@@ -1606,9 +1641,23 @@ def upload_short(video_path, title, description, tags, thumbnail_path=None):
         with open(TOKEN_FILE, 'rb') as f:
             creds = pickle.load(f)
     except (ModuleNotFoundError, AttributeError) as e:
-        print(f"  [WARN] Token incompatible: {e}")
-        print("  [WARN] Re-authenticate on this machine: python authenticate_youtube.py")
-        return None
+        # google-auth version drift: the saved token references an internal
+        # module that the current install lacks. Upgrade google-auth and retry.
+        print(f"  [WARN] Token incompatible ({e}). Attempting google-auth upgrade...")
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--upgrade",
+                 "google-auth", "google-auth-oauthlib", "google-auth-httplib2"],
+                capture_output=True, text=True, timeout=300,
+            )
+            # Retry import + unpickle after upgrade
+            from google.oauth2.credentials import Credentials  # noqa: F401
+            with open(TOKEN_FILE, 'rb') as f:
+                creds = pickle.load(f)
+        except Exception as e2:
+            print(f"  [WARN] Still incompatible: {e2}")
+            print("  [WARN] Re-authenticate: python authenticate_youtube.py")
+            return None
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())

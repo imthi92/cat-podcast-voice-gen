@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import pickle
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -84,8 +85,19 @@ def get_youtube_service():
                 credentials = pickle.load(token)
         except (ModuleNotFoundError, AttributeError) as e:
             print(f"[WARN] Token incompatible: {e}")
-            print("[WARN] Re-authenticate: python authenticate_youtube.py")
-            credentials = None
+            print("[WARN] Attempting google-auth upgrade...")
+            try:
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "--upgrade",
+                     "google-auth", "google-auth-oauthlib", "google-auth-httplib2"],
+                    capture_output=True, text=True, timeout=300,
+                )
+                with open(TOKEN_FILE, 'rb') as token:
+                    credentials = pickle.load(token)
+            except Exception as e2:
+                print(f"[WARN] Still incompatible: {e2}")
+                print("[WARN] Re-authenticate: python authenticate_youtube.py")
+                credentials = None
 
     # FIX: Force re-authentication if the existing token doesn't have the required scopes
     token_scopes = set(getattr(credentials, 'scopes', []) or [])
