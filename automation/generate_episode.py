@@ -20,6 +20,13 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 
+# Windows-safe stdout/stderr encoding (prevents UnicodeEncodeError on prints)
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 # ============================================================
 # CONFIG
 # ============================================================
@@ -1461,7 +1468,7 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None,
     # FIX: Check token scopes to prevent silent 403 failures on playlists
     token_scopes = getattr(creds, 'scopes', []) or []
     if "https://www.googleapis.com/auth/youtube" not in token_scopes:
-        print("  ⚠️ WARNING: Token does not have 'youtube' scope. Playlist creation will fail!")
+        print("  WARNING: Token does not have 'youtube' scope. Playlist creation will fail!")
         print("  Please delete youtube_token.pickle and regenerate it using the fixed youtube_upload.py")
 
     if not creds or not creds.valid:

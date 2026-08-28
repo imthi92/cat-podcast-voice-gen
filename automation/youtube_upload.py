@@ -12,6 +12,13 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+# Windows-safe stdout/stderr encoding (prevents UnicodeEncodeError on prints)
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 # YouTube API imports
 try:
     from google.oauth2.credentials import Credentials
@@ -102,7 +109,7 @@ def get_youtube_service():
     # FIX: Force re-authentication if the existing token doesn't have the required scopes
     token_scopes = set(getattr(credentials, 'scopes', []) or [])
     if credentials and not REQUIRED_SCOPES.issubset(token_scopes):
-        print("⚠️  Token scopes insufficient for playlist management. Re-authenticating...")
+        print("[WARN] Token scopes insufficient for playlist management. Re-authenticating...")
         credentials = None
         try:
             os.remove(TOKEN_FILE)
