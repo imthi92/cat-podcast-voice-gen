@@ -1821,8 +1821,9 @@ def generate_episode(specific_number=None):
     backgrounds = get_all_backgrounds()
     bg_image = random.choice(backgrounds) if backgrounds else None
     short_results = []
-    if bg_image:
-        short_results = generate_shorts(audio_path, script_path, output_dir, episode_title, ep_count, bg_image)
+    # Shorts generation disabled - full videos only
+    # if bg_image:
+    #     short_results = generate_shorts(audio_path, script_path, output_dir, episode_title, ep_count, bg_image)
 
     description = f"""Simba and Meow discuss hospital gossip in this hilarious cat podcast!"""
     tags = [

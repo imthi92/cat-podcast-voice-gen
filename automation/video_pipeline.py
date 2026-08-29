@@ -575,9 +575,10 @@ def run_pipeline(script_path, episode_title=None):
     thumbnail_path = create_thumbnail(episode_title, output_dir)
     results["thumbnail"] = thumbnail_path
 
-    # Step 6: Generate Shorts (Uses the exact final_video generated above)
-    shorts = generate_shorts(final_video, output_dir)
-    results["shorts"] = shorts
+    # Step 6: Shorts disabled - full videos only
+    # shorts = generate_shorts(final_video, output_dir)
+    # results["shorts"] = shorts
+    results["shorts"] = []
 
     # Save metadata
     metadata_path = os.path.join(output_dir, "metadata.json")
@@ -588,7 +589,7 @@ def run_pipeline(script_path, episode_title=None):
     print("PIPELINE COMPLETE!")
     print("=" * 60)
     print(f"\nFinal video: {final_video}")
-    print(f"Shorts: {', '.join(shorts)}")
+    # print(f"Shorts: {', '.join(shorts)}")
     print(f"Thumbnail: {thumbnail_path}")
     print(f"Metadata: {metadata_path}")
 

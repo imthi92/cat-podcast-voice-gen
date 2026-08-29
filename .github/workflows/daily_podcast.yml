@@ -1,4 +1,4 @@
-name: Daily Cat Podcast (1 Video + 2 Shorts)
+name: Daily Cat Podcast (1 Video)
 
 on:
   schedule:
@@ -54,7 +54,6 @@ jobs:
           name: episode-${{ github.run_number }}
           path: |
             automation/output/episode_*/final_video.mp4
-            automation/output/episode_*/shorts/short_*/short_video.mp4
           retention-days: 7
 
       - name: Commit state + generated scripts
