@@ -211,6 +211,29 @@
         ],
         "timestamp": "20260815_101623"
       }
+    },
+    {
+      "script_path": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_05_about_owners.txt",
+      "timestamp": "2026-08-30T14:55:12.298427",
+      "metadata": {
+        "script": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_05_about_owners.txt",
+        "title": "Today's topic is something every cat understands. the owner.",
+        "topic": "Today's topic is something every cat understands. the owner.",
+        "episode_number": 7,
+        "audio": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260830_144555/audio_with_sfx.mp3",
+        "video": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260830_144555/final_video.mp4",
+        "thumbnail": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260830_144555/thumbnail.png",
+        "upload": {
+          "video_id": "NoL3BUjmVLQ",
+          "url": "https://youtube.com/watch?v=NoL3BUjmVLQ"
+        },
+        "shorts": [],
+        "speakers": [
+          "Speaker 2",
+          "Speaker 1"
+        ],
+        "timestamp": "20260830_144555"
+      }
     }
   ]
 }

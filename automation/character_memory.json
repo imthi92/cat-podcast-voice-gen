@@ -1,5 +1,5 @@
 {
-  "episodes_done": 4,
+  "episodes_done": 5,
   "running_jokes": [
     "The cats still bring up: 'Meow i need to tell you something. i have a crush' from a few episodes ago"
   ],
@@ -7,7 +7,8 @@
     "Welcome to \"the simba show\"! i'm simba the smartest cat in t",
     "Welcome back to the simba show. today i'm going to tell you ",
     "Meow i need to tell you something. i have a crush",
-    "Meow. meow. meow. i need to tell you something important"
+    "Meow. meow. meow. i need to tell you something important",
+    "Today's topic is something every cat understands. the owner."
   ],
   "relationships": {
     "Simba_Meow": "Friendly rivals, Meow always corrects Simba's stories",
