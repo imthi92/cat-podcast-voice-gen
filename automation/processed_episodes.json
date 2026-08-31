@@ -234,6 +234,28 @@
         ],
         "timestamp": "20260830_144555"
       }
+    },
+    {
+      "script_path": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_06_hometown_friends.txt",
+      "timestamp": "2026-08-31T17:30:36.898385",
+      "metadata": {
+        "script": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_06_hometown_friends.txt",
+        "title": "Welcome back. today's episode is about something very close ",
+        "topic": "Welcome back. today's episode is about something very close ",
+        "episode_number": 8,
+        "audio": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260831_172726/audio_with_sfx.mp3",
+        "video": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260831_172726/final_video.mp4",
+        "thumbnail": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260831_172726/thumbnail.png",
+        "upload": {
+          "video_id": "NDcnflf2gyE",
+          "url": "https://youtube.com/watch?v=NDcnflf2gyE"
+        },
+        "speakers": [
+          "Speaker 2",
+          "Speaker 1"
+        ],
+        "timestamp": "20260831_172726"
+      }
     }
   ]
 }
