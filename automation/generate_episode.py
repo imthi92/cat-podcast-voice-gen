@@ -66,6 +66,8 @@ def _build_ssml(speaker, text, rate):
     voice = VOICES.get(speaker, "en-US-JennyNeural")
     pitch = _NATURAL_PITCH.get(speaker, "0%")
     t = text
+    # Escape XML special characters to prevent SSML parse errors
+    t = t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
     # Convert written pauses into actual audible breaks
     t = t.replace("...", '<break time="600ms"/>')
     t = t.replace("--", '<break time="300ms"/>')
@@ -1747,7 +1749,11 @@ def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_
             title = f"The Simba Show - {episode_title} (Short 1)"
             desc = f"Cat podcast short! Full episode in bio.\n\n#Shorts #CatPodcast #FunnyCats #SimbaAndMeow"
             tags = ["cat podcast", "funny cats", "Shorts", "simba and meow"]
-            upload1 = upload_short(short1_video, title, desc, tags)
+            try:
+                upload1 = upload_short(short1_video, title, desc, tags)
+            except Exception as e:
+                print(f"  [WARN] Short 1 upload failed: {e}")
+                upload1 = None
             short_results.append({"short": 1, "upload": upload1, "video": short1_video})
             print(f"  Short 1 done")
 
@@ -1765,7 +1771,11 @@ def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_
             title = f"The Simba Show - {episode_title} (Short 2)"
             desc = f"Best moment from the cat podcast!\n\n#Shorts #CatPodcast #FunnyCats #SimbaAndMeow"
             tags = ["cat podcast", "funny cats", "Shorts", "simba and meow"]
-            upload2 = upload_short(short2_video, title, desc, tags)
+            try:
+                upload2 = upload_short(short2_video, title, desc, tags)
+            except Exception as e:
+                print(f"  [WARN] Short 2 upload failed: {e}")
+                upload2 = None
             short_results.append({"short": 2, "upload": upload2, "video": short2_video})
             print(f"  Short 2 done")
 

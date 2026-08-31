@@ -1,4 +1,4 @@
-edge-tts
+edge-tts==6.1.12
 gTTS
 pyttsx3
 requests
