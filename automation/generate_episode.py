@@ -1615,171 +1615,8 @@ def get_audio_segment(audio_path, start_sec, duration_sec, output_path):
         pass
     return os.path.exists(output_path)
 
-def create_short_video(audio_path, bg_image, output_dir, title, subtitle_text):
-    """FIXED: Properly renders 9:16 vertical video with dynamic text overlay"""
-    duration = get_audio_duration(audio_path)
-    w, h = 1080, 1920
-    video_path = os.path.join(output_dir, "short_video.mp4")
-    
-    _ensure_font_in(output_dir)
-    fa = _font_arg()
-    
-    # Escape text for FFmpeg drawtext
-    safe_text = subtitle_text.replace("'", "\\'").replace(":", "\\:").replace("%", "\\%")
-    
-    # 9:16 vertical format: fully blurred backdrop so any AI-generated fake
-    # text/URLs in the source image are unreadable, plus a centered caption.
-    vf = (
-        "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20,"
-        f"drawtext=text='{safe_text}':fontcolor=white:fontsize=40{fa}:x=(w-text_w)/2:y=(h/2)+300:box=1:boxcolor=black@0.5:boxborderw=10"
-    )
-    
-    cmd = [
-        FFMPEG_EXE, '-y', '-loop', '1', '-i', bg_image, '-i', audio_path,
-        '-c:v', 'libx264', '-c:a', 'aac', '-b:a', '192k', '-pix_fmt', 'yuv420p',
-        '-vf', vf,
-        '-shortest', video_path
-    ]
-    try:
-        subprocess.run(cmd, capture_output=True, text=True, timeout=300, cwd=output_dir)
-    except:
-        pass
-    return video_path if os.path.exists(video_path) else None
-
 def upload_short(video_path, title, description, tags, thumbnail_path=None):
-    try:
-        from google.oauth2.credentials import Credentials
-        from google.auth.transport.requests import Request
-        from googleapiclient.discovery import build
-        from googleapiclient.http import MediaFileUpload
-    except ImportError:
-        return None
-    if not os.path.exists(TOKEN_FILE):
-        return None
-    try:
-        with open(TOKEN_FILE, 'rb') as f:
-            creds = pickle.load(f)
-    except (ModuleNotFoundError, AttributeError) as e:
-        # google-auth version drift: the saved token references an internal
-        # module that the current install lacks. Upgrade google-auth and retry.
-        print(f"  [WARN] Token incompatible ({e}). Attempting google-auth upgrade...")
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "pip", "install", "--upgrade",
-                 "google-auth", "google-auth-oauthlib", "google-auth-httplib2"],
-                capture_output=True, text=True, timeout=300,
-            )
-            # Retry import + unpickle after upgrade
-            from google.oauth2.credentials import Credentials  # noqa: F401
-            with open(TOKEN_FILE, 'rb') as f:
-                creds = pickle.load(f)
-        except Exception as e2:
-            print(f"  [WARN] Still incompatible: {e2}")
-            print("  [WARN] Re-authenticate: python authenticate_youtube.py")
-            return None
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            with open(TOKEN_FILE, 'wb') as f:
-                pickle.dump(creds, f)
-        else:
-            return None
-
-    youtube = build('youtube', 'v3', credentials=creds)
-    all_tags = tags + ["Shorts", "YouTube Shorts", "Short"]
-    body = {
-        "snippet": {
-            "title": title[:100],
-            "description": description[:5000],
-            "tags": all_tags[:500],
-            "categoryId": "24",
-            "defaultLanguage": "en",
-        },
-        "status": {
-            "privacyStatus": "public",
-            "embeddable": True,
-            "publicStatsViewable": True,
-            "selfDeclaredMadeForKids": False,
-        },
-    }
-    media = MediaFileUpload(video_path, mimetype="video/mp4", resumable=True, chunksize=10*1024*1024)
-    try:
-        request = youtube.videos().insert(part=",".join(body.keys()), body=body, media_body=media)
-        response = None
-        while response is None:
-            status, response = request.next_chunk()
-            if status:
-                print(f"  {int(status.progress()*100)}%")
-        video_id = response["id"]
-        url = f"https://youtube.com/shorts/{video_id}"
-        print(f"  Short uploaded: {url}")
-        if thumbnail_path and os.path.exists(thumbnail_path):
-            try:
-                youtube.thumbnails().set(
-                    videoId=video_id,
-                    media_body=MediaFileUpload(thumbnail_path, mimetype="image/png")
-                ).execute()
-            except:
-                pass
-        return {"video_id": video_id, "url": url}
-    except Exception as e:
-        print(f"  Short upload failed: {e}")
-        return None
-
-def generate_shorts(audio_path, script_path, output_dir, episode_title, episode_number, bg_image):
-    print("\n[SHORTS] Generating 2 Shorts...")
-    duration = get_audio_duration(audio_path)
-    shorts_dir = os.path.join(output_dir, "shorts")
-    os.makedirs(shorts_dir, exist_ok=True)
-
-    with open(script_path, 'r', encoding='utf-8') as f:
-        lines = [l.strip() for l in f.readlines() if l.strip() and ":" in l]
-
-    short_results = []
-
-    # Short 1: Opening hook
-    short1_dir = os.path.join(shorts_dir, "short_1")
-    os.makedirs(short1_dir, exist_ok=True)
-    short1_audio = os.path.join(short1_dir, "short1_audio.mp3")
-    clip_duration = min(25, duration)
-    if get_audio_segment(audio_path, 0, clip_duration, short1_audio):
-        first_line = lines[0].split(":", 1)[1].strip() if lines else "The Simba Show"
-        short1_video = create_short_video(short1_audio, bg_image, short1_dir, f"EP {episode_number:02d} - Hook", first_line)
-        if short1_video:
-            title = f"The Simba Show - {episode_title} (Short 1)"
-            desc = f"Cat podcast short! Full episode in bio.\n\n#Shorts #CatPodcast #FunnyCats #SimbaAndMeow"
-            tags = ["cat podcast", "funny cats", "Shorts", "simba and meow"]
-            try:
-                upload1 = upload_short(short1_video, title, desc, tags)
-            except Exception as e:
-                print(f"  [WARN] Short 1 upload failed: {e}")
-                upload1 = None
-            short_results.append({"short": 1, "upload": upload1, "video": short1_video})
-            print(f"  Short 1 done")
-
-    # Short 2: Best moment
-    short2_dir = os.path.join(shorts_dir, "short_2")
-    os.makedirs(short2_dir, exist_ok=True)
-    short2_audio = os.path.join(short2_dir, "short2_audio.mp3")
-    start_time = max(0, (duration / 2) - 10)
-    clip_duration = min(25, duration - start_time)
-    if get_audio_segment(audio_path, start_time, clip_duration, short2_audio):
-        mid_idx = len(lines) // 2
-        mid_line = lines[mid_idx].split(":", 1)[1].strip() if mid_idx < len(lines) else "Hospital gossip"
-        short2_video = create_short_video(short2_audio, bg_image, short2_dir, f"EP {episode_number:02d} - Best Moment", mid_line)
-        if short2_video:
-            title = f"The Simba Show - {episode_title} (Short 2)"
-            desc = f"Best moment from the cat podcast!\n\n#Shorts #CatPodcast #FunnyCats #SimbaAndMeow"
-            tags = ["cat podcast", "funny cats", "Shorts", "simba and meow"]
-            try:
-                upload2 = upload_short(short2_video, title, desc, tags)
-            except Exception as e:
-                print(f"  [WARN] Short 2 upload failed: {e}")
-                upload2 = None
-            short_results.append({"short": 2, "upload": upload2, "video": short2_video})
-            print(f"  Short 2 done")
-
-    return short_results
+    return None
 
 # ============================================================
 # MAIN
@@ -1828,13 +1665,6 @@ def generate_episode(specific_number=None):
 
     thumbnail_path = create_thumbnail(output_dir, episode_title, ep_count)
 
-    backgrounds = get_all_backgrounds()
-    bg_image = random.choice(backgrounds) if backgrounds else None
-    short_results = []
-    # Shorts generation disabled - full videos only
-    # if bg_image:
-    #     short_results = generate_shorts(audio_path, script_path, output_dir, episode_title, ep_count, bg_image)
-
     description = f"""Simba and Meow discuss hospital gossip in this hilarious cat podcast!"""
     tags = [
         "cat podcast", "funny cats", "hospital cats", "cat comedy",
@@ -1850,7 +1680,7 @@ def generate_episode(specific_number=None):
     metadata = {
         "script": script_path, "title": episode_title, "topic": topic,
         "episode_number": ep_count, "audio": audio_path, "video": video_path,
-        "thumbnail": thumbnail_path, "upload": upload_result, "shorts": short_results,
+        "thumbnail": thumbnail_path, "upload": upload_result,
         "speakers": speakers_used, "timestamp": timestamp,
     }
 
@@ -1866,9 +1696,6 @@ def generate_episode(specific_number=None):
     print(f"  Full Video: {video_path}")
     if upload_result:
         print(f"  YouTube: {upload_result['url']}")
-    for sr in short_results:
-        if sr.get("upload"):
-            print(f"  Short {sr['short']}: {sr['upload']['url']}")
     print("=" * 60)
 
     return metadata

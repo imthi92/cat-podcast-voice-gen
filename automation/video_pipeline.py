@@ -446,74 +446,6 @@ def create_thumbnail(episode_title, output_dir):
 
 
 # ============================================================
-# STEP 6: GENERATE SHORTS (New - Guaranteed to use current episode)
-# ============================================================
-
-def generate_shorts(video_path, output_dir):
-    """Generate 2 YouTube Shorts (vertical 9:16) from the final video."""
-    print("\n[6/6] Generating 2 Shorts...")
-    shorts = []
-    duration = get_audio_duration(video_path)
-    
-    # Vertical video filter: blurred background + centered foreground
-    # This converts 16:9 to 9:16 without cutting off subtitles
-    vf = "split=2[a][b];[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20[bg];[b]scale=1080:-1[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2"
-
-    # Short 1: First 60 seconds (or less if video is shorter)
-    short1_path = os.path.join(output_dir, "short_1.mp4")
-    cmd1 = [
-        FFMPEG_EXE, '-y',
-        '-i', video_path,
-        '-t', str(min(60, duration)),
-        '-vf', vf,
-        '-c:v', 'libx264',
-        '-c:a', 'aac',
-        '-pix_fmt', 'yuv420p',
-        '-r', '24',
-        short1_path
-    ]
-    try:
-        print("  Generating Short 1...")
-        result1 = subprocess.run(cmd1, capture_output=True, text=True, timeout=180)
-        if os.path.exists(short1_path) and os.path.getsize(short1_path) > 0:
-            shorts.append(short1_path)
-            print("  Short 1 generated successfully")
-        else:
-            print(f"  Short 1 failed: {result1.stderr[:200]}")
-    except Exception as e:
-        print(f"  Short 1 generation failed: {e}")
-
-    # Short 2: A 60-second segment from the middle of the video
-    if duration > 60:
-        start_time = max(0, duration / 2 - 30)
-        short2_path = os.path.join(output_dir, "short_2.mp4")
-        cmd2 = [
-            FFMPEG_EXE, '-y',
-            '-ss', str(start_time),
-            '-i', video_path,
-            '-t', '60',
-            '-vf', vf,
-            '-c:v', 'libx264',
-            '-c:a', 'aac',
-            '-pix_fmt', 'yuv420p',
-            '-r', '24',
-            short2_path
-        ]
-        try:
-            print("  Generating Short 2...")
-            result2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=180)
-            if os.path.exists(short2_path) and os.path.getsize(short2_path) > 0:
-                shorts.append(short2_path)
-                print("  Short 2 generated successfully")
-            else:
-                print(f"  Short 2 failed: {result2.stderr[:200]}")
-        except Exception as e:
-            print(f"  Short 2 generation failed: {e}")
-            
-    return shorts
-
-
-# ============================================================
 # MAIN PIPELINE
 # ============================================================
 
@@ -571,14 +503,9 @@ def run_pipeline(script_path, episode_title=None):
     final_video = add_music(video_path, output_dir)
     results["final_video"] = final_video
 
-    # Step 5: Thumbnail
+    # Step 6: Thumbnail
     thumbnail_path = create_thumbnail(episode_title, output_dir)
     results["thumbnail"] = thumbnail_path
-
-    # Step 6: Shorts disabled - full videos only
-    # shorts = generate_shorts(final_video, output_dir)
-    # results["shorts"] = shorts
-    results["shorts"] = []
 
     # Save metadata
     metadata_path = os.path.join(output_dir, "metadata.json")
@@ -589,7 +516,6 @@ def run_pipeline(script_path, episode_title=None):
     print("PIPELINE COMPLETE!")
     print("=" * 60)
     print(f"\nFinal video: {final_video}")
-    # print(f"Shorts: {', '.join(shorts)}")
     print(f"Thumbnail: {thumbnail_path}")
     print(f"Metadata: {metadata_path}")
 
