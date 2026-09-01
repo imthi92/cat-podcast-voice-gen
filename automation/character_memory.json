@@ -1,5 +1,5 @@
 {
-  "episodes_done": 6,
+  "episodes_done": 7,
   "running_jokes": [
     "The cats still bring up: 'Meow i need to tell you something. i have a crush' from a few episodes ago",
     "The cats still bring up: 'Welcome back. today's episode is about something very close ' from a few episodes ago"
@@ -10,7 +10,8 @@
     "Meow i need to tell you something. i have a crush",
     "Meow. meow. meow. i need to tell you something important",
     "Today's topic is something every cat understands. the owner.",
-    "Welcome back. today's episode is about something very close "
+    "Welcome back. today's episode is about something very close ",
+    "Meow. i have an announcement. a big announcement. a life cha"
   ],
   "relationships": {
     "Simba_Meow": "Friendly rivals, Meow always corrects Simba's stories",

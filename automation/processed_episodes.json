@@ -256,6 +256,28 @@
         ],
         "timestamp": "20260831_172726"
       }
+    },
+    {
+      "script_path": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_07_hiking_trip.txt",
+      "timestamp": "2026-09-01T14:41:52.382291",
+      "metadata": {
+        "script": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_07_hiking_trip.txt",
+        "title": "Meow. i have an announcement. a big announcement. a life cha",
+        "topic": "Meow. i have an announcement. a big announcement. a life cha",
+        "episode_number": 9,
+        "audio": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260901_143821/audio_with_sfx.mp3",
+        "video": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260901_143821/final_video.mp4",
+        "thumbnail": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260901_143821/thumbnail.png",
+        "upload": {
+          "video_id": "yz_3GVEtsu8",
+          "url": "https://youtube.com/watch?v=yz_3GVEtsu8"
+        },
+        "speakers": [
+          "Speaker 1",
+          "Speaker 2"
+        ],
+        "timestamp": "20260901_143821"
+      }
     }
   ]
 }
