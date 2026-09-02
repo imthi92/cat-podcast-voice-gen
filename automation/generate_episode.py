@@ -1076,7 +1076,7 @@ def _get_background_fallback(output_dir):
         # NOTE: AI image models often bake fake gibberish text/URLs into
         # "studio" scenes. Explicitly forbid text, words, letters, signage and
         # logos so the background doesn't show URL-like artifacts in the video.
-        prompt = "cartoon cat podcast studio with microphones, plain walls, soft colors, no text, no words, no letters, no signage, no logos, no URLs"
+        prompt = "two cartoon cats sitting on cozy chairs in a warm podcast studio with plant pots, wooden desk, microphones, soft warm lighting, bookshelves, cozy interior, no text, no words, no letters, no signage, no logos, no URLs"
         url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1280&height=720&nologo=true&model=flux"
         resp = requests.get(url, timeout=30, allow_redirects=True)
         if resp.status_code == 200:
