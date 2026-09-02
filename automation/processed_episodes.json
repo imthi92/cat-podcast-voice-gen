@@ -278,6 +278,28 @@
         ],
         "timestamp": "20260901_143821"
       }
+    },
+    {
+      "script_path": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_08_fan_following.txt",
+      "timestamp": "2026-09-02T14:15:13.186472",
+      "metadata": {
+        "script": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_08_fan_following.txt",
+        "title": "Meow. i have something to show you. something incredible. so",
+        "topic": "Meow. i have something to show you. something incredible. so",
+        "episode_number": 10,
+        "audio": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260902_141110/audio_with_sfx.mp3",
+        "video": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260902_141110/final_video.mp4",
+        "thumbnail": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260902_141110/thumbnail.png",
+        "upload": {
+          "video_id": "tommYJimLDI",
+          "url": "https://youtube.com/watch?v=tommYJimLDI"
+        },
+        "speakers": [
+          "Speaker 2",
+          "Speaker 1"
+        ],
+        "timestamp": "20260902_141110"
+      }
     }
   ]
 }
