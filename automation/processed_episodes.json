@@ -300,6 +300,28 @@
         ],
         "timestamp": "20260902_141110"
       }
+    },
+    {
+      "script_path": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_09_department_rivalry.txt",
+      "timestamp": "2026-09-03T14:16:31.292983",
+      "metadata": {
+        "script": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_09_department_rivalry.txt",
+        "title": "Today's episode is about office politics. department rivalry",
+        "topic": "Today's episode is about office politics. department rivalry",
+        "episode_number": 11,
+        "audio": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260903_141339/audio_with_sfx.mp3",
+        "video": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260903_141339/concat_video.mp4",
+        "thumbnail": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20260903_141339/thumbnail.png",
+        "upload": {
+          "video_id": "W2TKEkZc_mg",
+          "url": "https://youtube.com/watch?v=W2TKEkZc_mg"
+        },
+        "speakers": [
+          "Speaker 2",
+          "Speaker 1"
+        ],
+        "timestamp": "20260903_141339"
+      }
     }
   ]
 }

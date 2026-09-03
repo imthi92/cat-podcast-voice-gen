@@ -1,8 +1,9 @@
 {
-  "episodes_done": 8,
+  "episodes_done": 9,
   "running_jokes": [
     "The cats still bring up: 'Meow i need to tell you something. i have a crush' from a few episodes ago",
-    "The cats still bring up: 'Welcome back. today's episode is about something very close ' from a few episodes ago"
+    "The cats still bring up: 'Welcome back. today's episode is about something very close ' from a few episodes ago",
+    "The cats still bring up: 'Today's episode is about office politics. department rivalry' from a few episodes ago"
   ],
   "past_topics": [
     "Welcome to \"the simba show\"! i'm simba the smartest cat in t",
@@ -12,7 +13,8 @@
     "Today's topic is something every cat understands. the owner.",
     "Welcome back. today's episode is about something very close ",
     "Meow. i have an announcement. a big announcement. a life cha",
-    "Meow. i have something to show you. something incredible. so"
+    "Meow. i have something to show you. something incredible. so",
+    "Today's episode is about office politics. department rivalry"
   ],
   "relationships": {
     "Simba_Meow": "Friendly rivals, Meow always corrects Simba's stories",
