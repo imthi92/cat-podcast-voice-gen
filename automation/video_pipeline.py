@@ -363,7 +363,6 @@ def create_placeholder_background(output_path):
         FFMPEG_EXE, '-y',
         '-f', 'lavfi',
         '-i', 'color=c=#1a1a2e:s=1280x720:d=1',
-        '-vf', "drawtext=text='The Simba Show':fontcolor=white:fontsize=60:x=(w-text_w)/2:y=50,drawtext=text='Podcast Studio':fontcolor=#888888:fontsize=30:x=(w-text_w)/2:y=120,drawtext=text='Simba & Meow':fontcolor=#ffaa00:fontsize=40:x=(w-text_w)/2:y=h-100",
         '-frames:v', '1',
         output_path
     ]

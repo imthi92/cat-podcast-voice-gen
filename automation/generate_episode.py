@@ -1114,21 +1114,10 @@ def _get_background_fallback(output_dir):
 
 def create_intro_screen(output_dir, episode_title, episode_number):
     intro_path = os.path.abspath(os.path.join(output_dir, "intro.mp4"))
-    _ensure_font_in(output_dir)
-    fa = _font_arg()
     cmd = [
         FFMPEG_EXE, '-y',
         '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=4',
         '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.1',
-        '-vf', (
-            f"drawtext=text='The Simba Show':fontcolor=white:fontsize=60{fa}:x=(w-text_w)/2:y=150,"
-            f"drawtext=text='Episode {episode_number}':fontcolor=#ffaa00:fontsize=40{fa}:x=(w-text_w)/2:y=250,"
-            f"drawtext=text='Simba':fontcolor=#ff6b35:fontsize=30{fa}:x=200:y=400,"
-            f"drawtext=text='Meow':fontcolor=#4a9eff:fontsize=30{fa}:x=400:y=400,"
-            f"drawtext=text='Imti':fontcolor=#00ff88:fontsize=30{fa}:x=600:y=400,"
-            f"drawtext=text='Zulfi':fontcolor=#ff44ff:fontsize=30{fa}:x=800:y=400,"
-            f"drawtext=text='Hospital Gossip Podcast':fontcolor=#aaaaaa:fontsize=24{fa}:x=(w-text_w)/2:y=500"
-        ),
         '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '44100', '-t', '4', intro_path
     ]
     try:
@@ -1139,21 +1128,10 @@ def create_intro_screen(output_dir, episode_title, episode_number):
 
 def create_outro_screen(output_dir, episode_number=None):
     outro_path = os.path.abspath(os.path.join(output_dir, "outro.mp4"))
-    next_ep = (episode_number or 1) + 1
-    _ensure_font_in(output_dir)
-    fa = _font_arg()
     cmd = [
         FFMPEG_EXE, '-y',
         '-f', 'lavfi', '-i', 'color=c=#1a1a2e:s=1280x720:d=5',
         '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.1',
-        '-vf', (
-            f"drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=60{fa}:x=(w-text_w)/2:y=100,"
-            "drawbox=x=440:y=300:w=400:h=80:color=#ff0000:t=fill,"
-            f"drawtext=text='SUBSCRIBE':fontcolor=white:fontsize=40{fa}:x=(w-text_w)/2:y=315,"
-            f"drawtext=text='Next Episode Coming Tomorrow!':fontcolor=white:fontsize=30{fa}:x=(w-text_w)/2:y=450,"
-            f"drawtext=text='Simba | Meow | Imti | Zulfi':fontcolor=#aaaaaa:fontsize=24{fa}:x=(w-text_w)/2:y=520,"
-            f"drawtext=text='@thesimbashowss':fontcolor=#888888:fontsize=20{fa}:x=(w-text_w)/2:y=600"
-        ),
         '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '44100', '-t', '5', outro_path
     ]
     try:
@@ -1203,8 +1181,6 @@ def create_speaker_video(audio_path, output_dir, script_lines, episode_title, ep
     if not script_lines: return None
     total_duration = get_audio_duration(audio_path)
     times = get_segment_times(output_dir, len(script_lines), total_duration)
-    _ensure_font_in(output_dir)
-    fa = _font_arg()
 
     clips = []
     seg_out = os.path.join(output_dir, "speaker_clips")
@@ -1217,8 +1193,6 @@ def create_speaker_video(audio_path, output_dir, script_lines, episode_title, ep
         if not img: return None
         img = os.path.abspath(img)
         clip_path = os.path.join(seg_out, f"clip_{i:04d}.mp4")
-        name = _speaker_display_name(speaker)
-        color = get_speaker_color(speaker).lstrip("#")
         # Blur the image and overlay a sharp centered copy so any AI-generated
         # fake text/URLs baked into the background become unreadable, while the
         # subject (cat) stays crisp.
@@ -1226,10 +1200,7 @@ def create_speaker_video(audio_path, output_dir, script_lines, episode_title, ep
             "split=2[a][b];"
             "[a]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,boxblur=12[bg];"
             "[b]scale=900:-1[fg];"
-            "[bg][fg]overlay=(W-w)/2:(H-h)/2,"
-            f"drawbox=x=0:y=640:w=1280:h=65:color=black@0.5:t=fill,"
-            f"drawbox=x=20:y=648:w=90:h=30:color=0x{color}:t=fill,"
-            f"drawtext=text='{name}':fontcolor=white:fontsize=18{fa}:x=30:y=653"
+            "[bg][fg]overlay=(W-w)/2:(H-h)/2"
         )
         cmd = [
             FFMPEG_EXE, '-y', '-loop', '1', '-i', img,
@@ -1266,21 +1237,8 @@ def create_speaker_video(audio_path, output_dir, script_lines, episode_title, ep
 def create_main_video(audio_path, bg_image, output_dir, episode_title, episode_number):
     audio_path = os.path.abspath(audio_path)
     bg_image = os.path.abspath(bg_image)
-    _ensure_font_in(output_dir)
-    fa = _font_arg()
     video_path = os.path.join(output_dir, "main_video.mp4")
-    vf = (
-        "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,boxblur=8,"
-        "drawbox=x=0:y=620:w=1280:h=100:color=black@0.6:t=fill,"
-        "drawbox=x=20:y=640:w=80:h=25:color=#ff6b35:t=fill,"
-        f"drawtext=text='Simba':fontcolor=white:fontsize=14{fa}:x=25:y=645,"
-        "drawbox=x=110:y=640:w=70:h=25:color=#4a9eff:t=fill,"
-        f"drawtext=text='Meow':fontcolor=white:fontsize=14{fa}:x=115:y=645,"
-        "drawbox=x=200:y=640:w=60:h=25:color=#00ff88:t=fill,"
-        f"drawtext=text='Imti':fontcolor=white:fontsize=14{fa}:x=205:y=645,"
-        "drawbox=x=280:y=640:w=60:h=25:color=#ff44ff:t=fill,"
-        f"drawtext=text='Zulfi':fontcolor=white:fontsize=14{fa}:x=285:y=645"
-    )
+    vf = "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720"
     cmd = [
         FFMPEG_EXE, '-y', '-loop', '1', '-i', bg_image, '-i', audio_path,
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
@@ -1393,7 +1351,7 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
         pass
 
     if os.path.exists(concat_path):
-        return add_subtitles(concat_path, subtitle_path, output_dir)
+        return concat_path
     return video_with_music
 
 # ============================================================
@@ -1403,19 +1361,12 @@ def create_video(audio_path, subtitle_path, output_dir, episode_title, episode_n
 def create_thumbnail(output_dir, episode_title, episode_number):
     print("[4/5] Creating thumbnail...")
     thumbnail = os.path.abspath(os.path.join(output_dir, "thumbnail.png"))
-    _ensure_font_in(output_dir)
-    fa = _font_arg()
 
     backgrounds = get_all_backgrounds()
     if not backgrounds:
         cmd = [
             FFMPEG_EXE, '-y', '-f', 'lavfi',
             '-i', 'color=c=#1a1a2e:s=720x540:d=1',
-            '-vf', (
-                "drawbox=x=20:y=20:w=120:h=50:color=#ff0000:t=fill,"
-                f"drawtext=text='EP {episode_number}':fontcolor=white:fontsize=28{fa}:x=30:y=28,"
-                f"drawtext=text='The Simba Show':fontcolor=#ffaa00:fontsize=40{fa}:x=(w-text_w)/2:y=200"
-            ),
             '-frames:v', '1', thumbnail
         ]
         try:
@@ -1431,23 +1382,8 @@ def create_thumbnail(output_dir, episode_title, episode_number):
             f.write(episode_title[:40])
     except:
         pass
-    cmd = [
-        FFMPEG_EXE, '-y', '-i', bg,
-        '-vf', (
-            "drawbox=x=20:y=20:w=120:h=50:color=#ff0000:t=fill,"
-            f"drawtext=text='EP {episode_number}':fontcolor=white:fontsize=28{fa}:x=30:y=28,"
-            "drawbox=x=0:y=520:w=720:h=80:color=black@0.7:t=fill,"
-            f"drawtext=textfile=thumb_title.txt:fontcolor=white:fontsize=24{fa}:x=10:y=545"
-        ),
-        '-c:v', 'png', thumbnail
-    ]
-    try:
-        result = subprocess.run(cmd, capture_output=True, timeout=30, cwd=output_dir)
-        if result.returncode != 0 and os.path.exists(bg):
-            shutil.copy2(bg, thumbnail)
-    except:
+    if os.path.exists(bg):
         shutil.copy2(bg, thumbnail)
-
     return thumbnail if os.path.exists(thumbnail) else None
 
 # ============================================================
