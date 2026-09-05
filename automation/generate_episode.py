@@ -55,24 +55,26 @@ NATURAL_MODE = os.environ.get("NATURAL_MODE", "1") != "0"
 
 # Per-speaker pitch tweak (SSML) to give each cat a distinct, lively voice.
 _NATURAL_PITCH = {
-    "Speaker 1": "+5%",   # Simba - upbeat, energetic
-    "Speaker 2": "-2%",   # Meow  - dry, calm
-    "Imti":      "+1%",   # Imti - slightly strained
-    "Zulfi":     "-1%",   # Zulfi - formal, flat
+    "Speaker 1": "+8%",    # Simba - upbeat, energetic
+    "Speaker 2": "-3%",    # Meow  - dry, calm
+    "Imti":      "+2%",    # Imti - slightly strained
+    "Zulfi":     "-5%",    # Zulfi - deep, formal
 }
 
 def _build_ssml(speaker, text, rate):
-    """Wrap spoken text in SSML with real pauses and per-speaker prosody."""
+    """Wrap spoken text in SSML with natural conversational pauses."""
     voice = VOICES.get(speaker, "en-US-JennyNeural")
     pitch = _NATURAL_PITCH.get(speaker, "0%")
     t = text
     # Escape XML special characters to prevent SSML parse errors
     t = t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
     # Convert written pauses into actual audible breaks
-    t = t.replace("...", '<break time="600ms"/>')
-    t = t.replace("--", '<break time="300ms"/>')
-    # Small breath/pause after sentence-ending punctuation
-    t = re.sub(r'([.!?])\s', r'\1<break time="200ms"/>', t)
+    t = t.replace("...", '<break time="500ms"/>')
+    t = t.replace("--", '<break time="250ms"/>')
+    # Vary pause length by punctuation: questions get shorter pause, exclamations medium, periods longer
+    t = re.sub(r'\?\s', '?<break time="150ms"/>', t)
+    t = re.sub(r'!\s', '!<break time="180ms"/>', t)
+    t = re.sub(r'\.\s', '.<break time="280ms"/>', t)
     return (
         '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
         f'xml:lang="en-US"><voice name="{voice}">'
@@ -829,9 +831,9 @@ def get_speaker_color(speaker):
     colors = {"Speaker 1": "#ff6b35", "Speaker 2": "#4a9eff", "Imti": "#00ff88", "Zulfi": "#ff44ff"}
     return colors.get(speaker, "#ffffff")
 
-NATURAL_PREFILLERS = ["Hmm,", "Ohh,", "Wait,", "Okay so,", "So,", "Well,"]
-NATURAL_LONG_EXCL = ["Woooow!", "Whoa!", "No way!", "Oof.", "Hahaha!", "Hehe.", "Ugh...", "Ooh!"]
-NATURAL_SHORT_EXCL = ["Hmm.", "Eh.", "Oof.", "Hahaha!", "Hehe.", "Pfft.", "Mmm.", "Ooh!"]
+NATURAL_PREFILLERS = ["Hmm,", "Ohh,", "Wait,", "Okay so,", "So,", "Well,", "Oh right,", "Actually,"]
+NATURAL_LONG_EXCL = ["Woooow!", "Whoa!", "No way!", "Oof.", "Hahaha!", "Hehe.", "Ugh...", "Ooh!", "Bro what?!", "Stop it!"]
+NATURAL_SHORT_EXCL = ["Hmm.", "Eh.", "Oof.", "Hahaha!", "Hehe.", "Pfft.", "Mmm.", "Ooh!", "Right?", "Wait wait."]
 _last_filler = None
 
 def _pick_filler():
@@ -853,29 +855,34 @@ def naturalize_text(text, line_index, total_lines):
     is_last = line_index >= total_lines - 2
     is_first = line_index <= 0
     is_short = len(t) < 25
+    # Only modify ~40% of lines to avoid sounding artificial
+    skip_middle = not is_first and not is_last and not is_short and random.random() > 0.40
+
+    if skip_middle:
+        return t
 
     if is_last:
-        opener = random.choice(["Okay so,", "So,", "Well,", ""])
-        tail = random.choice([" ...hahaha!", " ...oof.", " ...goodnight everyone.", ""])
+        opener = random.choice(["Okay so,", "So,", "Well,", "Anyway,", ""])
+        tail = random.choice([" ...hahaha!", " ...oof.", " ...goodnight everyone.", " ...see ya.", ""])
     elif is_first:
-        opener = random.choice(["Okay okay, ", "So, ", "Alright, "])
-        tail = random.choice([" ...hehe.", " ...right?", ""])
+        opener = random.choice(["Okay okay, ", "So, ", "Alright, ", "Oh hey, ", ""])
+        tail = random.choice([" ...hehe.", " ...right?", " ...let's go.", ""])
     elif is_short:
         if has_question:
             opener = ""
-            tail = random.choice([" ...?", " ...hmm?", " ...right?", ""])
-            if random.random() < 0.3: opener = random.choice(["Wait, ", "Hmm, "])
+            tail = random.choice([" ...?", " ...hmm?", " ...right?", " ...you know?"])
+            if random.random() < 0.25: opener = random.choice(["Wait, ", "Hmm, "])
         else:
-            opener = random.choice(["Ohh, ", "Wait, ", "No way, ", "Hahaha! ", "Pfft. ", ""])
-            tail = random.choice([" ", " haha.", " oof.", "!"])
+            opener = random.choice(["Ohh, ", "Wait, ", "No way, ", "Hahaha! ", "Pfft. ", "Bro, ", ""])
+            tail = random.choice([" ", " haha.", " oof.", "!", " no way."])
     else:
         opener = ""
         if random.random() < 0.30: opener = _pick_filler() + " "
         tail = ""
         if has_exclaim and random.random() < 0.35:
-            tail = random.choice(["!", " ...wow!", " ...hahaha!", ""])
-        elif random.random() < 0.12:
-            tail = random.choice([" ...hehe.", " ...oof.", " ...right?", ""])
+            tail = random.choice(["!", " ...wow!", " ...hahaha!", " ...that's crazy!"])
+        elif random.random() < 0.15:
+            tail = random.choice([" ...hehe.", " ...oof.", " ...right?", " ...anyway."])
     return opener + t + tail
 
 def _tts_edge(segments_dir, lines):
@@ -888,9 +895,13 @@ def _tts_edge(segments_dir, lines):
         if text.startswith("..."): rate = "-2%"
         elif "!" in text and len(text) < 20: rate = "+15%"
         elif speaker == "Simba" or speaker == "Speaker 1": rate = "+10%"
-        elif speaker == "Meow" or speaker == "Speaker 2": rate = "+8%"
-        elif speaker == "Imti": rate = "+12%"
-        elif speaker == "Zulfi": rate = "+4%"
+        elif speaker == "Meow" or speaker == "Speaker 2": rate = "+6%"
+        elif speaker == "Imti": rate = "+8%"
+        elif speaker == "Zulfi": rate = "+2%"
+        # Add natural randomness to rate so every line doesn't sound identical
+        rate_num = int(rate.replace("%", "").replace("+", ""))
+        rate_num += random.randint(-2, 3)
+        rate = f"+{rate_num}%"
         if NATURAL_MODE:
             # SSML already embeds voice + rate + pitch + pauses
             ssml = _build_ssml(speaker, spoken, rate)
@@ -1073,12 +1084,9 @@ def _get_background_fallback(output_dir):
     try:
         import requests
         os.makedirs(IMAGES_DIR, exist_ok=True)
-        # NOTE: AI image models often bake fake gibberish text/URLs into
-        # "studio" scenes. Explicitly forbid text, words, letters, signage and
-        # logos so the background doesn't show URL-like artifacts in the video.
         prompt = "two cartoon cats sitting on cozy chairs in a warm podcast studio with plant pots, wooden desk, microphones, soft warm lighting, bookshelves, cozy interior, no text, no words, no letters, no signage, no logos, no URLs"
         url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1280&height=720&nologo=true&model=flux"
-        resp = requests.get(url, timeout=30, allow_redirects=True)
+        resp = requests.get(url, timeout=60, allow_redirects=True)
         if resp.status_code == 200:
             img_path = os.path.join(IMAGES_DIR, f"gen_{hashlib.md5(resp.content).hexdigest()[:8]}.jpg")
             with open(img_path, 'wb') as f: f.write(resp.content)
@@ -1087,19 +1095,6 @@ def _get_background_fallback(output_dir):
                 return img_path
     except Exception as e:
         print(f"  [SKIP] Pollinations failed: {e}")
-
-    try:
-        import requests
-        url = "https://picsum.photos/1280/720"
-        resp = requests.get(url, timeout=30, allow_redirects=True)
-        if resp.status_code == 200:
-            img_path = os.path.join(IMAGES_DIR, f"picsum_{hashlib.md5(resp.content).hexdigest()[:8]}.jpg")
-            with open(img_path, 'wb') as f: f.write(resp.content)
-            if os.path.getsize(img_path) > 1000:
-                print(f"  Downloaded background from Picsum")
-                return img_path
-    except Exception as e:
-        print(f"  [SKIP] Picsum failed: {e}")
 
     try:
         img_path = os.path.join(output_dir, "generated_bg.jpg")
