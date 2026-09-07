@@ -552,7 +552,7 @@ def _generate_groq():
     response = requests.post(url, 
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json={
-            "model": "llama-3.3-70b-versatile",
+            "model": "llama-3.1-70b-versatile",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.95,
             "max_tokens": 1500
