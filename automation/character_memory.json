@@ -1,12 +1,12 @@
 {
-  "episodes_done": 11,
+  "episodes_done": 12,
   "running_jokes": [
     "The cats still bring up: 'Meow i need to tell you something. i have a crush' from a few episodes ago",
     "The cats still bring up: 'Welcome back. today's episode is about something very close ' from a few episodes ago",
-    "The cats still bring up: 'Today's episode is about office politics. department rivalry' from a few episodes ago"
+    "The cats still bring up: 'Today's episode is about office politics. department rivalry' from a few episodes ago",
+    "The cats still bring up: 'The patient complained that the hospital food tastes like the office food' from a few episodes ago"
   ],
   "past_topics": [
-    "Welcome back to the simba show. today i'm going to tell you ",
     "Meow i need to tell you something. i have a crush",
     "Meow. meow. meow. i need to tell you something important",
     "Today's topic is something every cat understands. the owner.",
@@ -15,7 +15,8 @@
     "Meow. i have something to show you. something incredible. so",
     "Today's episode is about office politics. department rivalry",
     "Update on princess. the crush. the love of my life. the cat ",
-    "The mysterious usb drive"
+    "The mysterious usb drive",
+    "The patient complained that the hospital food tastes like the office food"
   ],
   "relationships": {
     "Simba_Meow": "Friendly rivals, Meow always corrects Simba's stories",

@@ -1416,9 +1416,14 @@ def upload_to_youtube(video_path, title, description, tags, thumbnail_path=None,
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            with open(TOKEN_FILE, 'wb') as f:
-                pickle.dump(creds, f)
+            try:
+                creds.refresh(Request())
+                with open(TOKEN_FILE, 'wb') as f:
+                    pickle.dump(creds, f)
+            except Exception as e:
+                print(f"  Token refresh failed (token expired/revoked): {e}")
+                print("  Skipping upload. Re-run authenticate_youtube.py to re-authenticate.")
+                return None
         else:
             print("  Token expired")
             return None

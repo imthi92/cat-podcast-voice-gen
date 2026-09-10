@@ -366,6 +366,29 @@
         ],
         "timestamp": "20260905_131850"
       }
+    },
+    {
+      "script_path": "C:\\Users\\Imtiyaz\\Documents\\cat-podcast-voice-gen\\scripts\\episode_ai_20260909_193737.txt",
+      "timestamp": "2026-09-09T19:45:00.047835",
+      "metadata": {
+        "script": "C:\\Users\\Imtiyaz\\Documents\\cat-podcast-voice-gen\\scripts\\episode_ai_20260909_193737.txt",
+        "title": "The patient complained that the hospital food tastes like the office food",
+        "topic": "The patient complained that the hospital food tastes like the office food",
+        "episode_number": 14,
+        "audio": "C:\\Users\\Imtiyaz\\Documents\\cat-podcast-voice-gen\\automation\\output\\episode_20260909_193737\\episode_audio.mp3",
+        "video": "C:\\Users\\Imtiyaz\\Documents\\cat-podcast-voice-gen\\automation\\output\\episode_20260909_193737\\concat_video.mp4",
+        "thumbnail": "C:\\Users\\Imtiyaz\\Documents\\cat-podcast-voice-gen\\automation\\output\\episode_20260909_193737\\thumbnail.png",
+        "upload": {
+          "video_id": "Qs-CFipVFos",
+          "url": "https://youtube.com/watch?v=Qs-CFipVFos"
+        },
+        "speakers": [
+          "Zulfi",
+          "Speaker 2",
+          "Speaker 1"
+        ],
+        "timestamp": "20260909_193737"
+      }
     }
   ]
 }
