@@ -62,6 +62,16 @@ class AccountManager:
     def _load_accounts(self):
         """Load accounts from config directory or environment."""
 
+        # Method 0: Hardcoded credentials (no env setup needed)
+        HARDCODED_USERNAME = "imthiyazzilaan"
+        HARDCODED_API_KEY = "KGAT_5598b6ccf1b678f72d5822618088e8b1"
+        if HARDCODED_USERNAME and HARDCODED_API_KEY:
+            self.accounts.append(KaggleAccount(
+                username=HARDCODED_USERNAME,
+                api_key=HARDCODED_API_KEY,
+                name="hardcoded",
+            ))
+
         # Method 1: KAGGLE_ACCOUNTS env var (JSON array)
         env_accounts = os.environ.get("KAGGLE_ACCOUNTS", "")
         if env_accounts:
