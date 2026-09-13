@@ -10,6 +10,7 @@ YouTube channel producing animated cat podcast episodes. Simba and Meow characte
 - moviepy (video assembly)
 - Pollinations.ai (background images)
 - YouTube Data API v3 (upload via OAuth2)
+- Kaggle GPU (free XTTS, VibeVoice, SadTalker - 30hr/week per account)
 
 ## Key Files
 - automation/generate_short.py - Shorts generator (1080x1920 vertical, 6 topics)
@@ -18,6 +19,9 @@ YouTube channel producing animated cat podcast episodes. Simba and Meow characte
 - automation/youtube_token.pickle - NEVER COMMIT
 - automation/client_secret.json - NEVER COMMIT
 - automation/downloaded_images/ - Pre-cached 11 podcast studio backgrounds
+- automation/kaggle_gpu/ - Kaggle GPU module (multi-account, budget tracking, retry)
+- automation/kaggle_integration.py - Kaggle wrapper (VibeVoice, SadTalker, SDXL)
+- automation/fallback_generator.py - Audio/video with Kaggle → Colab → EdgeTTS fallback
 
 ## How to Deploy
 1. Push to master branch
@@ -42,6 +46,7 @@ python generate_short.py
 ## Environment
 - GROQ_API_KEY: Required for script generation (set in GitHub Actions secrets)
 - YouTube OAuth: client_secret.json + youtube_token.pickle in automation/
+- Kaggle GPU: Credentials hardcoded in kaggle_gpu/accounts.py (no env setup needed)
 
 ## YouTube Schedule
 - Shorts: Mon-Fri 10AM UTC (vertical 1080x1920, 6 topics per day)
