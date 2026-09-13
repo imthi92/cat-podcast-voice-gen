@@ -114,9 +114,32 @@ def try_colab(text, filename):
         print(f"  [Colab] Failed: {e}")
     return None
 
+def try_kaggle_gpu(text, filename):
+    """Method 0: Try Kaggle GPU first (free, 30hr/week)"""
+    try:
+        from kaggle_integration import kaggle_generate_vibevoice
+        result = kaggle_generate_vibevoice(text=text)
+        if result:
+            output_path = str(FALLBACK_DIR / f"{filename}_kaggle.wav")
+            # Copy file to expected location
+            import shutil
+            shutil.copy2(result, output_path)
+            print(f"  [Kaggle GPU] Audio generated: {output_path}")
+            return output_path
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"  [Kaggle GPU] Failed: {e}")
+    return None
+
 def generate_audio(text, filename="episode"):
-    """Generate audio with fallback chain: Colab -> Edge TTS -> gTTS"""
+    """Generate audio with fallback chain: Kaggle GPU -> Colab -> Edge TTS -> gTTS"""
     print("[Audio] Starting generation...")
+    
+    # Method 0: Kaggle GPU (free)
+    result = try_kaggle_gpu(text, filename)
+    if result:
+        return result
     
     # Method 1: Colab
     result = try_colab(text, filename)
@@ -136,9 +159,31 @@ def generate_audio(text, filename="episode"):
     print("  [FAIL] All audio methods failed")
     return None
 
+def try_kaggle_video(source_image, driven_audio, filename):
+    """Try Kaggle GPU for SadTalker face animation"""
+    try:
+        from kaggle_integration import kaggle_animate_face
+        result = kaggle_animate_face(source_image=source_image, driven_audio=driven_audio)
+        if result:
+            output_path = str(FALLBACK_DIR / f"{filename}_kaggle.mp4")
+            import shutil
+            shutil.copy2(result, output_path)
+            print(f"  [Kaggle GPU SadTalker] Video generated: {output_path}")
+            return output_path
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"  [Kaggle GPU SadTalker] Failed: {e}")
+    return None
+
 def generate_video(audio_path, image_path, filename="episode"):
-    """Generate video with fallback chain: Colab SadTalker -> FFmpeg Ken Burns"""
+    """Generate video with fallback chain: Kaggle GPU SadTalker -> Colab SadTalker -> FFmpeg Ken Burns"""
     print("[Video] Starting generation...")
+    
+    # Method 0: Kaggle GPU SadTalker (free)
+    result = try_kaggle_video(image_path, audio_path, filename)
+    if result:
+        return result
     
     # Method 1: Try Colab for SadTalker
     if COLAB_WEBHOOK_URL:

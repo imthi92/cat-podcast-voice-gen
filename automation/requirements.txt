@@ -16,3 +16,4 @@ flask
 pyngrok
 openai-whisper
 groq
+kaggle

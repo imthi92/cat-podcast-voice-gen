@@ -90,8 +90,8 @@ def get_youtube_service():
         try:
             with open(TOKEN_FILE, 'rb') as token:
                 credentials = pickle.load(token)
-        except (ModuleNotFoundError, AttributeError) as e:
-            print(f"[WARN] Token incompatible: {e}")
+        except (ModuleNotFoundError, AttributeError, EOFError, pickle.UnpicklingError) as e:
+            print(f"[WARN] Token incompatible or corrupted: {e}")
             print("[WARN] Attempting google-auth upgrade...")
             try:
                 subprocess.run(

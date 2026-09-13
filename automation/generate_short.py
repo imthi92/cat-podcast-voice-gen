@@ -188,8 +188,12 @@ def upload_to_youtube_shorts(video_path, title, description):
             print("  [ERROR] YouTube token not found")
             return None
 
-        with open(token_path, "rb") as f:
-            token_data = pickle.load(f)
+        try:
+            with open(token_path, "rb") as f:
+                token_data = pickle.load(f)
+        except (EOFError, pickle.UnpicklingError) as e:
+            print(f"  [ERROR] Token file corrupted: {e}")
+            return None
 
         creds = Credentials(
             token=token_data.get("token"),
