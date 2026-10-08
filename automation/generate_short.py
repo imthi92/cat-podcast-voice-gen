@@ -181,33 +181,16 @@ def upload_to_youtube_shorts(video_path, title, description):
         from googleapiclient.discovery import build
         from googleapiclient.http import MediaFileUpload
 
-        token_path = os.path.join(SCRIPT_DIR, "youtube_token.pickle")
-        secret_path = os.path.join(SCRIPT_DIR, "client_secret.json")
+        # The stored token is a google Credentials OBJECT (authenticate_youtube.py
+        # does pickle.dump(credentials, ...)) - the previous dict-style loader
+        # called token_data.get("token") and raised AttributeError on every run.
+        # Reuse the shared loader, which refreshes and checks scopes for us.
+        from youtube_upload import get_youtube_service
 
-        if not os.path.exists(token_path):
-            print("  [ERROR] YouTube token not found")
-            return None
-
-        try:
-            with open(token_path, "rb") as f:
-                token_data = pickle.load(f)
-        except (EOFError, pickle.UnpicklingError) as e:
-            print(f"  [ERROR] Token file corrupted: {e}")
-            return None
-
-        creds = Credentials(
-            token=token_data.get("token"),
-            refresh_token=token_data.get("refresh_token"),
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=token_data.get("client_id") or token_data.get("client_id"),
-            client_secret=token_data.get("client_secret"),
-            scopes=["https://www.googleapis.com/auth/youtube.upload"]
-        )
-
-        if creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-
-        youtube = build("youtube", "v3", credentials=creds)
+        youtube = get_youtube_service()
+        if youtube is None:
+            print("  [ERROR] YouTube authentication failed (see messages above)")
+            return {"success": False, "error": "YouTube authentication failed"}
 
         body = {
             "snippet": {

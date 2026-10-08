@@ -132,6 +132,16 @@ def get_youtube_service():
                 print("6. Place in this directory")
                 return None
 
+            # Never open an interactive browser inside CI - it hangs the job
+            # until the runner timeout. Fail fast with an actionable message.
+            if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+                print("ERROR: YouTube token is invalid/expired and no interactive "
+                      "browser is available in CI.")
+                print("Refresh the token locally with: python authenticate_youtube.py")
+                print("then re-run: python setup_github_secrets.py and update the "
+                      "YOUTUBE_TOKEN_BASE64 secret.")
+                return None
+
             flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
             credentials = flow.run_local_server(port=0)
 

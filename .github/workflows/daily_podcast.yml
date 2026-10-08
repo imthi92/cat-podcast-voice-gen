@@ -35,10 +35,13 @@ jobs:
         run: pip install -r automation/requirements.txt
 
       - name: Decode YouTube credentials
-        run: |
-          mkdir -p automation
-          echo "${{ secrets.YOUTUBE_TOKEN_BASE64 }}" | base64 -d > automation/youtube_token.pickle
-          echo "${{ secrets.YOUTUBE_CLIENT_SECRET_BASE64 }}" | base64 -d > automation/client_secret.json
+        env:
+          YT_TOKEN_B64: ${{ secrets.YOUTUBE_TOKEN_BASE64 }}
+          YT_CLIENT_B64: ${{ secrets.YOUTUBE_CLIENT_SECRET_BASE64 }}
+        # Decodes base64 (or accepts a raw value), then validates that the
+        # result is real OAuth material. Fails with an exact ::error:: instead
+        # of the bare "base64: invalid input" / silent empty-file behaviour.
+        run: python automation/prepare_credentials.py
 
       - name: Run episode generator
         working-directory: automation
