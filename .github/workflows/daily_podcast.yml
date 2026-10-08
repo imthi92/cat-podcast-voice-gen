@@ -69,7 +69,18 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add automation/episode_counter.json automation/processed_episodes.json automation/character_memory.json scripts/episode_ai_*.txt 2>/dev/null || true
           git diff --cached --quiet || git commit -m "Auto: update podcast state (run ${{ github.run_number }})"
-          git push
+          # Rebase onto the remote before pushing: the branch moves while a
+          # run is in flight and a bare `git push` failed the job (run #22).
+          BRANCH="${{ github.ref_name }}"
+          for attempt in 1 2 3; do
+            git fetch origin "$BRANCH" || true
+            git rebase -X theirs "origin/$BRANCH" || { git rebase --abort 2>/dev/null || true; }
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push attempt $attempt failed - retrying"
+            sleep 5
+          done
+          echo "::error title=State commit failed::Could not push the state commit after 3 attempts."
+          exit 1
 
       # === DEEPNOTE TRIGGER (runs AFTER GitHub episode is done) ===
       - name: Trigger Deepnote pipeline

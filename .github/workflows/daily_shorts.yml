@@ -63,4 +63,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add automation/episode_counter.json automation/processed_episodes.json 2>/dev/null || true
           git diff --cached --quiet || git commit -m "Auto: update CatHub Shorts state (run ${{ github.run_number }})"
-          git push
+          # The branch can move while a run is in flight (another run's state
+          # commit or a human push); a bare `git push` then failed the whole
+          # job. Rebase onto the remote and retry instead.
+          BRANCH="${{ github.ref_name }}"
+          for attempt in 1 2 3; do
+            git fetch origin "$BRANCH" || true
+            git rebase -X theirs "origin/$BRANCH" || { git rebase --abort 2>/dev/null || true; }
+            git push origin "HEAD:$BRANCH" && exit 0
+            echo "push attempt $attempt failed - retrying"
+            sleep 5
+          done
+          echo "::error title=State commit failed::Could not push the state commit after 3 attempts."
+          exit 1
