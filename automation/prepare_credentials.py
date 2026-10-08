@@ -202,6 +202,52 @@ def validate_token(path, data):
     return "unexpected object type %s" % type(obj).__name__
 
 
+def probe_refresh(path):
+    """Fail fast when the OAuth refresh token itself is dead.
+
+    Without this, a revoked token burns 10 minutes generating a video and only
+    surfaces at upload time (and, before the exit-code fix, reported success
+    while publishing nothing). Refreshing here also persists a fresh access
+    token so the upload does not have to refresh again.
+    """
+    try:
+        import pickle
+        from google.auth.transport.requests import Request
+    except Exception as exc:
+        print("token: refresh probe skipped (%s)" % exc)
+        return None
+
+    try:
+        with open(path, "rb") as fh:
+            obj = pickle.load(fh)
+    except Exception as exc:
+        return "token could not be read for the refresh probe: %s" % exc
+
+    if not hasattr(obj, "refresh"):
+        return None  # plain/dict payload - the loader decides what to do
+
+    try:
+        if getattr(obj, "expired", True) or not getattr(obj, "token", None):
+            obj.refresh(Request())
+        with open(path, "wb") as fh:
+            pickle.dump(obj, fh)
+        print("token: refresh OK (access token valid until %s)"
+              % getattr(obj, "expiry", "unknown"))
+        return None
+    except Exception as exc:
+        msg = str(exc)
+        if "invalid_grant" in msg:
+            return ("the YouTube refresh token was revoked or expired (%s). "
+                    "Fix on a machine with a browser: "
+                    "python automation/authenticate_youtube.py, then update the "
+                    "YOUTUBE_TOKEN_BASE64 secret (or the committed "
+                    "automation/github_token_base64.txt fallback file)."
+                    % msg[:180])
+        print("token: refresh probe hit a transient error (%s) - continuing"
+              % msg[:180])
+        return None
+
+
 def main():
     print("=" * 60)
     print("YOUTUBE CREDENTIALS - resolve, decode, validate")
@@ -211,6 +257,12 @@ def main():
                        TOKEN_OUT, validate_token)
     ok_client = resolve("YOUTUBE_CLIENT_SECRET_BASE64", CLIENT_ENV, CLIENT_FILE,
                         SECRET_OUT, validate_client_secret)
+
+    if ok_token:
+        probe_problem = probe_refresh(TOKEN_OUT)
+        if probe_problem:
+            ok_token = False
+            errors.append("YOUTUBE_TOKEN_BASE64: " + probe_problem)
 
     for w in dict.fromkeys(warnings):
         print("::warning title=YouTube credentials::%s" % w)
