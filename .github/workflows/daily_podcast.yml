@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '0 10 * * 1'  # Every Monday at 10 AM UTC
   workflow_dispatch:
+  # Remote trigger hook: POST /repos/.../dispatches {"event_type":"manual-run"}
+  repository_dispatch:
+    types: [manual-run]
 
 jobs:
   generate-episode:
