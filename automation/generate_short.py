@@ -285,4 +285,10 @@ Two cats discussing life, the universe, and why humans don't understand anything
     return metadata
 
 if __name__ == "__main__":
-    generate_short()
+    result = generate_short()
+    # Exit non-zero when the upload failed, otherwise GitHub Actions reports a
+    # green run for a video that was never published.
+    upload_info = result.get("upload") if isinstance(result, dict) else None
+    if not (isinstance(upload_info, dict) and upload_info.get("success")):
+        print("ERROR: short was generated but NOT uploaded to YouTube - failing this run.")
+        sys.exit(1)

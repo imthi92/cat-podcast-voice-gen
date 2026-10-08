@@ -1644,4 +1644,11 @@ if __name__ == "__main__":
         except:
             pass
     result = generate_episode(specific)
-    sys.exit(0 if result else 1)
+    if not result:
+        sys.exit(1)
+    # upload_to_youtube() returns {'video_id','url'} on success and None on
+    # failure, so a missing/empty upload means nothing was published.
+    if not result.get("upload"):
+        print("ERROR: episode was generated but NOT uploaded to YouTube - failing this run.")
+        sys.exit(1)
+    sys.exit(0)
