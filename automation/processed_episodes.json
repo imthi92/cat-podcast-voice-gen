@@ -389,6 +389,26 @@
         ],
         "timestamp": "20260909_193737"
       }
+    },
+    {
+      "script_path": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_ai_20260909_193737.txt",
+      "timestamp": "2026-10-08T18:49:59.875424",
+      "metadata": {
+        "script": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/scripts/episode_ai_20260909_193737.txt",
+        "title": "Patient complained that the hospital food tastes like the of",
+        "topic": "Patient complained that the hospital food tastes like the of",
+        "episode_number": 15,
+        "audio": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20261008_184453/episode_audio.mp3",
+        "video": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20261008_184453/concat_video.mp4",
+        "thumbnail": "/home/runner/work/cat-podcast-voice-gen/cat-podcast-voice-gen/automation/output/episode_20261008_184453/thumbnail.png",
+        "upload": null,
+        "speakers": [
+          "Speaker 1",
+          "Zulfi",
+          "Speaker 2"
+        ],
+        "timestamp": "20261008_184453"
+      }
     }
   ]
 }
