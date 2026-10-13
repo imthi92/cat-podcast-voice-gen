@@ -33,7 +33,24 @@ def authenticate():
     # Try local server first (works on machines with browser)
     try:
         print("\nTrying local browser authentication...")
-        credentials = flow.run_local_server(port=8080)
+        # prompt="consent" is required here. access_type="offline" alone is not
+        # enough: if this Google account has already authorized the app, Google
+        # silently skips the consent screen and returns a token response with NO
+        # refresh_token. The flow still "succeeds", so we would pickle a
+        # useless credential and push it to GitHub, where unattended uploads
+        # would keep failing with invalid_grant.
+        #
+        # open_browser=False: this machine has no default browser registered
+        # for Python's `webbrowser` module, so letting run_local_server launch
+        # one raises, and the fallback below re-issues authorization_url() with
+        # a FRESH `state`. The consent already completed against the original
+        # state then comes back to a flow that rejects it with
+        # MismatchingStateError. Printing the URL and listening on :8080 keeps
+        # a single state alive for the whole flow.
+        credentials = flow.run_local_server(
+            port=8080, access_type="offline", prompt="consent",
+            open_browser=False,
+        )
     except Exception:
         # Headless mode (Deepnote, SSH, etc.)
         print("\nNo browser detected — using manual URL mode.")
@@ -57,12 +74,26 @@ def authenticate():
         flow.fetch_token(code=auth_code)
         credentials = flow.credentials
 
+    # Fail loudly before overwriting the token file. A pickle without a
+    # refresh_token looks identical to a good one until CI tries to refresh.
+    if not credentials.refresh_token:
+        print("\n" + "=" * 50)
+        print("ERROR: Google returned NO refresh_token.")
+        print("This pickle would be useless to GitHub Actions.")
+        print("")
+        print("Fix: revoke this app's access, then re-run:")
+        print("  https://myaccount.google.com/permissions")
+        print("  (remove the app, confirm, run this script again)")
+        print("=" * 50)
+        return False
+
     # Save token
     with open(TOKEN_FILE, 'wb') as token:
         pickle.dump(credentials, token)
 
     print("\n" + "=" * 50)
     print("AUTHENTICATION SUCCESSFUL!")
+    print(f"refresh_token: present ({len(credentials.refresh_token)} chars)")
     print(f"Token saved to: {TOKEN_FILE}")
     print("YouTube uploads will now work automatically.")
     print("=" * 50)
