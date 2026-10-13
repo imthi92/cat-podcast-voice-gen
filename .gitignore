@@ -1,7 +1,11 @@
 # Secrets
 automation/github_secrets/
 automation/client_secret.json
+# also covers rotated backups such as client_secret.json.bak-<timestamp>
+automation/client_secret.json.*
 automation/youtube_token.pickle
+# per-channel token archives produced by make_channel_secret.py
+automation/youtube_token.*.pickle
 
 # Output files
 output/
